@@ -1,0 +1,300 @@
+---
+title: "PSYCH 201A | Initial Data Exploration"
+author: "Cameron Jones"
+date: "02/11/2020"
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    theme: flatly
+    highlight: kate
+    code_folding: show
+    keep_md: true
+  pdf_document: default
+  word_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(RColorBrewer)
+library(lme4)
+
+```
+
+# Distribution of Data
+
+```{r}
+
+games <- read.csv("data/games.csv")
+guesses <- read.csv("data/guesses.csv")
+higher.lower <- read.csv("data/higher-lower-data2.csv")
+repeat.player <- read.csv("data/repeat-player-prediction.csv")
+
+paired <- brewer.pal(6, "Paired")
+color1 <- paired[1]
+color2 <- paired[2]
+color3 <- paired[3]
+
+
+```
+
+```{r}
+
+summary(games)
+
+head(games)
+
+```
+
+## Grouping by ppt
+
+Here I pulled out some summary info by player.
+
+```{r}
+
+# Cast dates as POSIX so we can manipulate them
+games <- games %>%
+  mutate(
+    startTimePOSIX = as.POSIXct(startTime)
+  )
+
+# Create a summary df grouped by user
+games.by.user <- games %>% 
+  group_by(user) %>%
+  summarise(
+    # Number of games played
+    no_games=n(),
+    # Date of first game
+    first_game=min(startTimePOSIX),
+    # Date of last game
+    last_game=max(startTimePOSIX),
+    # Mean duration of games
+    mean_duration=mean(duration),
+    # Mean no_guesses
+    mean_guesses=mean(numGuesses)
+  ) %>%
+  mutate(
+    # bin no_games into roughly even chunks
+    no_games_bin=cut(
+      no_games,
+      breaks = c(0, 1, 2, 5, 10, 200),
+      labels = c("1", "2-4", "5-9", "10-99", "100+"),
+      ),
+    # find the time between first and last games
+    career_length = last_game - first_game
+  )
+
+games.by.user.summary <- summary(games.by.user)
+
+games.by.user.summary
+```
+
+There's a huge range between players in terms of how many games they played (1-178), how long their games took (6 - 272 secs), but a ceiling at how many guesses they could take at 15.
+
+### How many games did each player play?
+
+```{r}
+
+# Plot density of no_games 
+games.by.user %>%
+  ggplot(aes(x=no_games_bin)) +
+  geom_bar(fill=color1) +
+  theme_minimal() +
+  labs(
+    title="Distribution of games per player",
+    x = "No. games played",
+    y = "No. players"
+  )
+  
+```
+
+Here we can see the majority of players played just 1-4 times, while a small number of players played >100 games. This isn't that surprising, but worth bearing in mind as any investigation of the effects of learning might be heavily skewed by this small group of fellow nerds.
+
+### How much time did players spend per-game?
+
+```{r}
+# Create bins for mean_duration
+games.by.user <- games.by.user %>%
+  mutate(
+    mean_duration_bin = cut(
+      mean_duration,
+      # breaks = c(0, 1, 2, 5, 10, 200),
+      # labels = c("1", "2-4", "5-9", "10-99", "100+"),
+      breaks = c(0, 25, 50, 75, 100, 300),
+      labels = c("0-25", "25-50", "50-75", "75-100", "100+"))
+  )
+
+games.by.user %>%
+  ggplot(aes(x=mean_duration_bin)) +
+  geom_bar(fill=color1) +
+  theme_minimal() +
+  labs(
+    title="Distribution of mean game duration per player",
+    x = "Mean game duration (s)",
+    y = "No. players"
+  )
+  
+```
+
+Again there's a very high spread but the majority of games take around a minute.
+
+
+### How many guesses did players take on average?
+
+```{r}
+# Create bins for mean_duration
+games.by.user <- games.by.user %>%
+  mutate(
+    mean_guesses_bin = as.factor(round(mean_guesses))
+  )
+
+games.by.user %>%
+  ggplot(aes(x=mean_guesses_bin)) +
+  geom_bar(fill=color1) +
+  theme_minimal() +
+  labs(
+    title="Distribution of mean no. guesses per player",
+    x = "Mean no guesses",
+    y = "No. players"
+  )
+  
+```
+
+These look pretty normally distributed!
+
+
+### Over what period did people play?
+
+```{r}
+# Create bins for mean_duration
+games.by.user <- games.by.user %>%
+  mutate(
+    career_length = as.numeric(
+      difftime(last_game, first_game, units="hours")),
+    career_length_bin = cut(
+      career_length,
+      breaks=c(-0.01, 0.01667, 0.1667, 1, 24, 168, 720, 3000),
+      labels=c("< 1 min", "1-10 min", "10-60 min", "1-24 hr", "1-7 days", "7-30 days", "30+ days")
+    )
+  )
+
+games.by.user %>%
+  ggplot(aes(x=career_length_bin)) +
+  geom_bar(fill=color1) +
+  theme_minimal() +
+  labs(
+    title="Distribution of career lengths",
+    x = "Career length (time between first and last games)",
+    y = "No. players"
+  )
+  
+```
+
+The distribution of "career lengths" is even more striking. The majority if players had <10 mins between their first and last games, but a decent number (801) kept playing for over a month.
+
+## Participant ability
+
+### Do participants get better over time?
+
+```{r}
+
+# Add a column with the by-ppt game index (was it their 1st, 2nd, 3rd game etc)
+games <- games %>%
+  group_by(user) %>%
+  mutate(
+    game_idx = dense_rank(startTimePOSIX)
+  ) %>%
+  arrange(user, game_idx)
+
+head(games)
+```
+
+```{r}
+
+games %>%
+  ggplot(aes(game_idx, numGuesses)) +
+  stat_summary_bin(fun.data="mean_cl_boot",
+                   geom="pointrange",
+                   binwidth = 5,
+                   color=color2) +
+  theme_minimal() + 
+  labs(
+    title="Number of guesses vs game index",
+    x = "No. previous games played by user",
+    y = "Number of guesses"
+  )
+  
+
+```
+
+I couldn't figure out a better way to plot this. It basically shows the mean number of guesses needed to complete each game against the "game index", or the number of games the user had played up until this point.
+
+There does seem to be a downward trend but it's not as dramatic as I was expecting. Maybe this is because people who play for a long period of time are not very good (e.g. children, definition of madness etc), or because no_guesses is too weak of a measure (it can still be tough to get the number quickly even if you are using a good strategy).
+
+```{r}
+
+m1 <- lm(numGuesses ~ game_idx, data=games)
+summary(m1)
+
+```
+
+A linear model shows a strong relationship between numGuesses and game_index (you expect to make one fewer guess about every 300 games).
+
+```{r}
+
+model.game_idx.guesses.null <- lmer(numGuesses ~ (1 + game_idx | user), data=games)
+
+summary(model.game_idx.guesses.null)
+
+model.game_idx.guesses <- lmer(numGuesses ~ game_idx + (1 + game_idx | user), data=games)
+
+summary(model.game_idx.guesses)
+
+anova(model.game_idx.guesses, model.game_idx.guesses.null)
+
+```
+
+A linear mixed effects model (which takes into account the variance between participants), shows a stronger relationship (it predicts you will make one fewer guess every 150 games). A likelihood ratio test against a null model shows the effect to be significant.
+
+## How good are the best participants?
+
+If we just sort by the mean lowest number of guesses, there is probably a lot of luck involved.
+
+```{r}
+
+games.by.user %>%
+  arrange(desc(mean_guesses)) %>% 
+  head(20)
+
+
+```
+
+Most of these people just played 1 or 2 games.
+
+So let's try excluding anyone who played < 10 games, and also getting a measure of their variance.
+
+```{r}
+
+high.performers <- games %>%
+  group_by(user) %>%
+  summarise(
+    no_games=n(),
+    mean_guesses=mean(numGuesses),
+    sd_guesses=sd(numGuesses)
+  ) %>%
+  filter(
+    no_games > 9
+  ) %>%
+  arrange(mean_guesses)
+
+high.performers %>%
+  filter(
+    sd_guesses < 1.5,
+    )
+
+```
+
+
