@@ -3,8 +3,6 @@ title: "Preliminary Data Summary | Number Guessing Game"
 author: "Cameron Jones, Felix Binder, Crystal Poole, Naomi Lin, & Robert Kaufman"
 date: "15/11/2020"
 output:
-  pdf_document:
-    toc: yes
   html_document:
     highlight: kate
     theme: flatly
