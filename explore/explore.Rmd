@@ -1,7 +1,6 @@
 ---
-title: "PSYCH 201A | Initial Data Exploration"
-author: "Cameron Jones"
-date: "02/11/2020"
+title: "PSYCH 201A | Number Guessing Game | Initial Data Exploration"
+author: "Number guessing game group"
 output:
   html_document:
     toc: yes
@@ -9,10 +8,6 @@ output:
     theme: flatly
     highlight: kate
     code_folding: show
-    keep_md: true
-  pdf_document: default
-  word_document:
-    toc: yes
 ---
 
 ```{r setup, include=FALSE}
@@ -27,17 +22,15 @@ library(lme4)
 # Distribution of Data
 
 ```{r}
-
-games <- read.csv("data/games.csv")
-guesses <- read.csv("data/guesses.csv")
-higher.lower <- read.csv("data/higher-lower-data2.csv")
-repeat.player <- read.csv("data/repeat-player-prediction.csv")
+games <- read.csv("../data/games.csv")
+guesses <- read.csv("../data/guesses.csv")
+higher.lower <- read.csv("../data/higher-lower-data2.csv")
+repeat.player <- read.csv("../data/repeat-player-prediction.csv")
 
 paired <- brewer.pal(6, "Paired")
 color1 <- paired[1]
 color2 <- paired[2]
 color3 <- paired[3]
-
 
 ```
 
@@ -220,6 +213,7 @@ games %>%
                    geom="pointrange",
                    binwidth = 5,
                    color=color2) +
+  geom_smooth(method = 'lm') + 
   theme_minimal() + 
   labs(
     title="Number of guesses vs game index",
@@ -230,7 +224,7 @@ games %>%
 
 ```
 
-I couldn't figure out a better way to plot this. It basically shows the mean number of guesses needed to complete each game against the "game index", or the number of games the user had played up until this point.
+Shows the mean number of guesses needed to complete each game against the "game index", or the number of games the user had played up until this point.
 
 There does seem to be a downward trend but it's not as dramatic as I was expecting. Maybe this is because people who play for a long period of time are not very good (e.g. children, definition of madness etc), or because no_guesses is too weak of a measure (it can still be tough to get the number quickly even if you are using a good strategy).
 
