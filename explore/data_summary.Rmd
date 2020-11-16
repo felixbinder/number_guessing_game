@@ -1,5 +1,5 @@
 ---
-title: "Preliminary Data Summary"
+title: "Preliminary Data Summary | Number Guessing Game"
 author: "Cameron Jones, Felix Binder, Crystal Poole, Naomi Lin, & Robert Kaufman"
 date: "15/11/2020"
 output:
@@ -624,7 +624,7 @@ users %>%
   theme_minimal() +
   labs(
     title="Distribution of mean game duration across users",
-    x = "Mean guesses per game",
+    x = "Mean duration in seconds per game",
     y = "Density"
   )
 
