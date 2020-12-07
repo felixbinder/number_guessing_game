@@ -1,0 +1,353 @@
+---
+title: "Data processing"
+author: "PSYC 201A | Number Guessing Game Team"
+date: "07/12/2020"
+output:
+  html_document:
+    highlight: kate
+    theme: flatly
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# --- Setup --- #
+
+# Load libraries
+library(tidyverse)
+library(RColorBrewer)
+library(knitr)
+
+# Load data
+games <- read.csv("../data/games.csv")
+
+# Cast startTime and endTime to POSIX
+games <- games %>%
+  mutate(
+    startTime = as.POSIXct(startTime),
+    endTime = as.POSIXct(startTime)
+  )
+
+# Create color palette
+paired <- brewer.pal(6, "Paired")
+color1 <- paired[1]
+color2 <- paired[2]
+color3 <- paired[3]
+
+```
+
+# 1. Introduction
+
+## 1.1. The dataset
+
+The dataset comes from a number guessing game running on Amazon Alexa. Users play a game with the voice assistant where the game randomly chooses a number between 1 to 100 and the user tries to guess the number. After a guess, the user is told whether their guess was too low or too high. The dataset includes 380,000 guesses across 50,000 games and 14,000 players. The dataset was sourced from [kaggle](https://www.kaggle.com/sdobson46/higher-or-lower-game). The dataset includes unique player IDs for all games as well as the date of the game and the outcome of the game. The dataset also allows for analysis of a player’s first game and information about whether the player returned to play more games. This dataset only includes completed games with no more than 15 guesses. The dataset excludes all guesses that Alexa did not understand or were invalid because they were not in the 1 to 100 number range. The dataset includes repeated guesses and guesses that conflict with previous hints provided by Alexa.
+
+### Codebook
+
+Dataframe `games` from `games.csv` file on kaggle.
+
+* 1 row per game played
+* 50881 rows total
+* 22 columns:
+  * `gameId` (factor w/ 50881 levels): Unique identifier for each game
+  * `user` (int): Unique identifier for each player
+  * `startTime` and `finishTime` (POSIX datetime): start and finish times of games.
+  * `duration` (int): Duration of game in seconds.
+  * `targetNum` (int): The randomly selected number between 1-100 that the player needs to guess
+  * `numGuesses` (int): Number of guesses the player needed to guess the target number
+  * `guess1` - `guess15` (int): The numbers which the user guessed.
+    
+
+## 1.2 Research questions
+
+We briefly review our research questions to make clear the relevance of specific variables and transformations.
+
+* How well do players approximate the optimal strategy (binary search)?
+  * This simple game has an optimal solution strategy, which is binary search. What proportion of users adopt this strategy? How does participant performance relate to this optimal benchmark?
+
+* What other strategies do players use and how can we characterize them?
+  * Are there other patterns in players' guesses that imply other strategies?
+  * How can we identify and categorize these strategies?
+  * Are strategies reliable and rational? Or do they expose irrational biases in players' reasoning?
+
+* How do players’ strategies change and/or improve over time?
+  * Do players' responses improve over time (as measured by the information gain of each guess)?
+  * Do players adopt or better approximate binary search over time or do they improve by adopting other strategies?
+  
+* Does players’ success affect their likelihood to continue playing?
+  * Do players who do very well continue to play for longer? Or do they stop quickly after improving their strategy or adopting binary search?
+  
+  
+# 2. Data transformations
+
+In order to make inferences about some of our research questions, we transform the data in several ways.
+
+* Grouping data by different variables in order to make comparisons across aggregates.
+  * Grouping games by user so we can look at a players' mean performance, the total number of games they played, and the time between their games.
+  
+* Pivoting data so that each guess is on a separate row of the dataframe.
+  * This allows us to enrich data about each guess by calculating e.g. the information gain of each guess
+  
+* Creating new variables
+  * Extracting new attributes from existing variables or relationships between them (e.g. the order in which several games were played by one participant).
+  
+## 2.1. Pivot to guesses
+
+We pivot the data longer so that each guess is on a new row. We remove any rows which contain unused guesses (i.e. NA).
+
+We then have a second dataframe `guesses`, with:
+  
+* One row per guess made.
+* 384053 rows total
+
+```{r}
+
+guesses <- games %>%
+  # Pivot longer on guess columns
+  pivot_longer(cols = starts_with("guess"), names_to = "attemptNum", values_to = "guess",
+               names_pattern = "guess([[:digit:]]+)") %>%
+  
+  # Filter NAs
+  filter(
+    !is.na(guess)
+  ) %>%
+  # Remove irrelevant vars
+  select(gameId, user, targetNum, attemptNum, guess) %>%
+  
+  # Convert attemptNum to numeric
+  mutate(
+    attemptNum = as.numeric(attemptNum),
+    guess = as.numeric(guess)
+  )
+
+```
+
+Next we create a variety of variables to measure the *effectiveness* of each guess in different ways (i.e. how much does the guess reduce uncertainty about the target number)?
+
+We create the following variables:
+
+* `response` (factor w/ 3 levels): Whether targetNum is "lower" or "higher" than the guess, or "correct".
+* `lowerBound` and `upperBound` (int): Minimum and maximum possible values for `targetNum` given previous guesses.
+* `numAvailable` (int): The number of possible options within bounds.
+* `prob` (num): The probability of randomly choosing `targetNum` from guesses within bounds [0,1].
+* `entropy` (num): The level of uncertainty of `targetNum` given bounds (`-1 * numAvailable * prob * log(prob)`).
+* `infoGain` (num): The reduction in `entropy` from `guess`.
+* `optimalGuess` (int): The optimal guess based on binary search.
+* `outOfBounds` (int): Whether the guess is within (0) or outwith (1) bounds.
+* `numExcluded` (int): The number of potential choices ruled out by the `guess`.
+* `propExcluded` (num): The proportion of potential choices ruled out by `guess`.
+
+```{r}
+
+guesses <- guesses %>%
+  group_by(gameId) %>%
+  mutate(guessId = paste(gameId, attemptNum, sep = "_")) %>%
+  arrange(gameId, attemptNum) %>%
+  mutate(
+    
+    # Check if guess is too high, low, or correct
+    response = case_when(
+      guess > targetNum ~ "lower",
+      guess < targetNum ~ "higher",
+      guess == targetNum ~ "correct",
+    ),
+    
+    # Initialise lowerBound
+    lowerBound = 1,
+    
+    # add lower and upper bound info
+    lowerBound = case_when(
+      row_number() == 1 ~ 1,
+      lag(response) == "lower" ~ lag(lowerBound, order_by=attemptNum),
+      lag(response) == "higher" ~ lag(guess, order_by=attemptNum) + 1
+    ),
+    
+    lowerBound = cummax(lowerBound),
+    
+    # Initialise upperBound
+    upperBound = 100,
+    
+    # add lower and upper bound info
+    upperBound = cummin(case_when(
+      row_number() == 1 ~ 100,
+      lag(response) == "higher" ~ lag(upperBound, order_by=attemptNum),
+      lag(response) == "lower" ~ lag(guess, order_by=attemptNum) - 1
+    )),
+    
+    numAvailable = (upperBound - lowerBound) + 1,
+    prob = 1 / numAvailable,
+    
+    # Get entropy
+    entropy = -1 * prob * log(prob) * numAvailable,
+    
+    # info gain
+    infoGain = entropy - lead(entropy, default = 0),
+    
+    # Find optimal guess
+    optimalGuess = floor((upperBound + lowerBound) / 2),
+    
+    # check if guess is optimal
+    isOptimal = as.numeric((abs(guess - ((upperBound + lowerBound) / 2))) < 1),
+    
+    # check if guess is out of bounds
+    outOfBounds = as.numeric(guess < lowerBound | guess > upperBound),
+    
+    # find no excluded
+    numExcluded = numAvailable - lead(numAvailable, default = 1),
+    propExcluded = numExcluded / numAvailable,
+    
+    # Add a thousandth so we can scale plots more readably
+    mili = 1 / 1000,
+  ) %>%
+  ungroup()
+
+```
+
+`infoGain` and `propExcluded` are highly correlated, but the latter is more interpretable.
+
+```{r}
+
+cor(guesses$infoGain, guesses$propExcluded)
+
+
+```
+  
+  
+We then group the guess data by `gameId` once again to compute aggregate statistics across games (e.g. mean information gain), and join this data onto the original `games` dataset. Finally we group games by user and rank them based on `startTime` in order to determine the game's index - the order in which participant played games.
+
+We add the following column to games:
+
+* `infoGain.mean` (num): The mean information gain of guesses in the game.
+* `propExcluded.mean` (num): The mean number of options excluded by guesses in the game.
+* `numOptimal` (num): The number of optimal guesses in the game.
+* `propOptimal` (num): The proportion of guesses that were optimal in the game.
+* `game_index` (int): The rank of games in order of `startTime` by user.
+
+```{r}
+
+# Group guesses by gameId and calculate aggregate stats
+games.info <- guesses %>%
+  group_by(gameId) %>%
+  summarise(
+    infoGain.mean = mean(infoGain),
+    propExcluded.mean = mean(propExcluded),
+    numOptimal = sum(isOptimal),
+    propOptimal = numOptimal / n(),
+    .groups = "drop"
+  )
+
+# Merge games.info back into games
+games <- merge(games, games.info) 
+
+# Add game_index information
+games <- games %>%
+  group_by(user) %>%
+  mutate(
+    game_index = dense_rank(startTime)
+  ) %>%
+  ungroup()
+
+```
+
+  
+## 2.2. Group by user
+
+We group games and guesses by user to create anothe dataframe, `users`:
+
+* Each row now represents one user
+* 14782 rows total.
+
+We then extract several variables.
+
+From `games` we extract:
+
+* `user` (int): The unique identifier of the user.
+* `no_games` (int): The number of games played by the user.
+* `firstGame` and `lastGame` (POSIX): The start times of the users' first and last games.
+* `career_length` (num): The difference in time between `lastGame` and `firstGame` in hours.
+* `duration.mean` (num): The mean duration of this users' games.
+* `guesses.mean` (num): The mean number of guesses the user made in games.
+* `guesses.total` (num): The total number of guesses made by the user across all games.
+* `no_games_bin` (factor w/5 levels): Number of games played binned into {1, 2-4, 5-9, 10-99, 100+}.
+
+From `guesses`, we extract:
+
+* `propExcluded.mean` (num): The mean number of choices excluded by guesses across a user's games.
+* `infoGain.mean` (num): The mean information gain of guesses across a user's games.
+* `numOptimal` (num): The number of optimal guesses across a user's games.
+* `propOptimal` (num): The proportion of guesses that were optimal across a user's games.
+
+
+```{r}
+
+# Create a summary df grouped by user
+users <- games %>% 
+  group_by(user) %>%
+  summarise(
+    # Number of games played
+    no_games=n(),
+    # Date of first game
+    first_game=min(startTime),
+    # Date of last game
+    last_game=max(startTime),
+    # Mean duration of games
+    duration.mean=mean(duration),
+    # Mean no_guesses
+    guesses.mean=mean(numGuesses),
+    guesses.total = sum(numGuesses),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    # bin no_games into roughly even chunks
+    no_games_bin=cut(
+      no_games,
+      breaks = c(0, 1, 2, 5, 10, 200),
+      labels = c("1", "2-4", "5-9", "10-99", "100+"),
+      ),
+    # find the time between first and last games
+    career_length = difftime(last_game, first_game, units="hours"),
+    career_length_bin = factor(
+      case_when(
+        no_games < 2 ~ "Single game",
+        career_length < (5 / 60) ~ "< 5 min",
+        career_length < 1 ~ "5-60 min",
+        career_length < 24 ~ "1-24 hr",
+        career_length < 168 ~ "1-7 days",
+        career_length < 720 ~ "7 - 30 days",
+        career_length >= 720 ~ "30+ days"),
+    levels = c("Single game", "< 5 min", "5-60 min", "1-24 hr", "1-7 days", "7 - 30 days", "30+ days")
+    )
+  )
+
+
+users <- merge(
+  users,
+  guesses %>%
+    group_by(user) %>%
+    summarise(
+      infoGain.mean = mean(infoGain),
+      propExcluded.mean = mean(propExcluded),
+      numOptimal = sum(isOptimal),
+      propOptimal = numOptimal / n(),
+      .groups = "drop"
+    )
+)
+
+```
+
+## 2.3. Save data
+
+We now save the processed dataframes for use in analysis scripts
+
+```{r}
+
+write.csv(guesses, "../data/guesses_processed_cj.csv")
+write.csv(games, "../data/games_processed.csv")
+write.csv(users, "../data/users_processed.csv")
+
+```
+

@@ -1,0 +1,168 @@
+---
+title: "Analysis"
+author: "Number Guessing Team"
+date: "07/12/2020"
+output:
+  html_document:
+    highlight: kate
+    theme: flatly
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 1. Intro
+
+Some text here about why/what we're doing. Dataset
+
+```{r}
+# --- Setup --- #
+
+# Load libraries
+suppressMessages(library(tidyverse))
+library(RColorBrewer)
+library(knitr)
+library(lme4)
+
+# Load data from data processing 
+guesses <- read.csv('../data/guesses_processed.csv')
+games <- read.csv('../data/games_processed.csv')
+users <- read.csv('../data/users_processed.csv')
+
+# Create color palette
+paired <- brewer.pal(6, "Paired")
+color1 <- paired[1]
+color2 <- paired[2]
+color3 <- paired[3]
+
+```
+
+
+# 2. How optimal are player strategies?
+
+How well do players approximate the optimal strategy (binary search)?
+
+## 2.1. What proportion of users and guesses are optimal?
+
+
+Roughly 1/3 of guesses were optimal.
+
+```{r}
+
+guesses %>%
+  mutate(isOptimal = factor(ifelse(isOptimal == 1, "Optimal", "Sub-optimal"))) %>%
+  group_by(isOptimal) %>%
+  summarise(prop = n() / nrow(guesses),
+            .groups = "drop") %>%
+  ggplot(aes(x = isOptimal, y = prop, fill=isOptimal)) + 
+  geom_bar(stat = "identity") +
+  scale_fill_brewer(palette = "Paired") +
+  theme_minimal() +
+  labs(
+    title="What proportion of guesses were optimal?",
+    x = "Optimality",
+    y = "No. guesses",
+    fill = "Optimality"
+  )
+
+```
+
+A unimodal distribution with a mean at around 0.25, shows most users produce an optimal guess around a quarter of the time. However, a small number of users are consistently producing optimal guesses more than 80% of the time.
+
+```{r}
+
+users %>%
+  ggplot(aes(x=propOptimal)) +
+  geom_density(color=color1, size=1) +
+  theme_minimal() +
+  labs(
+    title="Proportion of guesses which were optimal by user",
+    x = "Proportion of guesses that were optimal",
+    y = "Density"
+  )
+
+```
+
+In order to rule out users who are just getting lucky, we can filter for users who maintained > 0.8 `propOptimal` across >1 games and > 8 guesses. There are 40 such players, a small number of whom have played many games across a long period of time. Most, as in the rest of the dataset, have just played a few games over the course of minutes.
+
+```{r}
+
+top.users <- users %>%
+  filter(propOptimal > 0.8,
+         no_games > 1,
+         guesses.total > 8) %>%
+  arrange(desc(propOptimal))
+
+top.users %>% head(10) %>% select(user, no_games, guesses.mean, guesses.total,
+                                  career_length_bin, infoGain.mean, propExcluded.mean, 
+                                  propOptimal) %>% kable()
+
+```
+
+
+## 2.2. How optimal are other players/guesses?
+
+@Felix, @Naomi
+
+# 3. Other strategies
+
+What other strategies do players use and how can we characterize them?
+
+# 4. How do player strategies change over time?
+
+# 4.1. Does player performance improve?
+
+```{r}
+
+games %>%
+  ggplot(aes(game_index, numGuesses)) +
+  stat_summary_bin(fun.data="mean_cl_boot",
+                   geom="pointrange",
+                   binwidth = 5,
+                   color=color2) +
+  geom_smooth(method = 'lm') + 
+  theme_minimal() + 
+  labs(
+    title="Number of guesses vs game index",
+    x = "No. previous games played by user",
+    y = "Number of guesses"
+  )
+  
+
+```
+
+Shows the mean number of guesses needed to complete each game against the "game index", or the number of games the user had played up until this point.
+
+There does seem to be a downward trend but it's not as dramatic as I was expecting. Maybe this is because people who play for a long period of time are not very good (e.g. children, definition of madness etc), or because no_guesses is too weak of a measure (it can still be tough to get the number quickly even if you are using a good strategy).
+
+```{r}
+
+m1 <- lm(numGuesses ~ game_index, data=games)
+summary(m1)
+
+```
+
+A linear model shows a strong relationship between numGuesses and game_index (you expect to make one fewer guess about every 300 games).
+
+```{r}
+
+model.game_index.guesses.null <- lmer(numGuesses ~ (1 + game_index | user), data=games)
+
+summary(model.game_index.guesses.null)
+
+model.game_index.guesses <- lmer(numGuesses ~ game_index + (1 + game_index | user), data=games)
+
+summary(model.game_index.guesses)
+
+anova(model.game_index.guesses, model.game_index.guesses.null)
+
+```
+
+A linear mixed effects model (which takes into account the variance between participants), shows a stronger relationship (it predicts you will make one fewer guess every 150 games). A likelihood ratio test against a null model shows the effect to be significant.
+
+
+
+
