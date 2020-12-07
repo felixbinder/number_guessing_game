@@ -256,7 +256,7 @@ games <- games %>%
   
 ## 2.2. Group by user
 
-We group games and guesses by user to create anothe dataframe, `users`:
+We group games and guesses by user to create another dataframe, `users`:
 
 * Each row now represents one user
 * 14782 rows total.
