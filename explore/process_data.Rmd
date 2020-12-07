@@ -210,7 +210,6 @@ guesses <- guesses %>%
 "Out of bounds" guesses can be the result of many different causes. Inattention, forgetfulness, distraction, lack of effort, and user development (ex./ small children) are all potential sources. As a result, we have chosen to exclude all games which include an "out of bounds" guess.
 
 ```{r}
-#NOTE TO TEAM: Please double check that I (Rob) did the right thing here to eliminate games with out of bounds guesses. if you think it seems right, feel free to delete this comment
 outofbounds_exclusions <- guesses %>%
   group_by(gameId) %>%
   filter(outOfBounds == 1) %>% 
