@@ -126,7 +126,7 @@ games %>%
   geom_smooth(method = 'lm') + 
   theme_minimal() + 
   labs(
-    title="Number of guesses vs game index",
+    title="Number of guesses for n-th game of user",
     x = "No. previous games played by user",
     y = "Number of guesses"
   )
@@ -137,6 +137,47 @@ games %>%
 Shows the mean number of guesses needed to complete each game against the "game index", or the number of games the user had played up until this point.
 
 There does seem to be a downward trend but it's not as dramatic as I was expecting. Maybe this is because people who play for a long period of time are not very good (e.g. children, definition of madness etc), or because no_guesses is too weak of a measure (it can still be tough to get the number quickly even if you are using a good strategy).
+
+```{r}
+
+games %>%
+  ggplot(aes(game_index, propOptimal)) +
+  stat_summary_bin(fun.data="mean_cl_boot",
+                   geom="pointrange",
+                   binwidth = 5,
+                   color=color2) +
+  geom_smooth(method = 'lm') + 
+  theme_minimal() + 
+  ylim(0,1) +
+  labs(
+    title="Proportion of optimal guesses for n-th game of user",
+    x = "No. previous games played by user",
+    y = "Proportion of optimal guesses"
+  )
+  
+
+```
+However, the proportion of optimal guesses markedly increases with the total number of games.
+
+```{r}
+
+games %>%
+  ggplot(aes(game_index, infoGain.mean)) +
+  stat_summary_bin(fun.data="mean_cl_boot",
+                   geom="pointrange",
+                   binwidth = 5,
+                   color=color2) +
+  geom_smooth(method = 'lm') + 
+  theme_minimal() + 
+  labs(
+    title="Mean information gain per guess for n-th game of user",
+    x = "No. previous games played by user",
+    y = "Mean information gain"
+  )
+  
+
+```
+The same cannot be said for the mean information gain, however. How come?
 
 ```{r}
 
