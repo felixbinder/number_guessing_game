@@ -1,5 +1,5 @@
-games <- read.csv("data/games.csv") 
+#read in preprocessed csvs. Working directory should be the top folder of the repo
+games <- read.csv("data/games_processed.csv") 
 #everything we need is in games.csv, the other files are just data computed from
-guesses <- read.csv("data/guesses.csv")
-repeat_player_prediction <- read.csv("data/repeat-player-prediction.csv")
-higher_lower_data2 <- read.csv("data/higher-lower-data2.csv")
+guesses <- read.csv("data/guesses_processed.csv")
+users <- read.csv("data/users_processed.csv")
