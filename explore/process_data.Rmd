@@ -182,7 +182,7 @@ guesses <- guesses %>%
     prob = 1 / numAvailable,
     
     # Get entropy
-    entropy = -1 * prob * log(prob) * numAvailable,
+    entropy = -1 * prob * log2(prob) * numAvailable,
     
     # info gain
     infoGain = entropy - lead(entropy, default = 0),
@@ -199,6 +199,31 @@ guesses <- guesses %>%
     # find no excluded
     numExcluded = numAvailable - lead(numAvailable, default = 1),
     propExcluded = numExcluded / numAvailable,
+    
+    # ----- Repeat info measures for optimal guess ---- #
+    
+    # Optimal response
+    # Check if guess is too high, low, or correct
+    
+    # Optimal lower, upper, and numAvailable
+    numAvailable.optimal = case_when(
+      optimalGuess > targetNum ~ (optimalGuess - lowerBound) + 1,
+      optimalGuess < targetNum ~ (upperBound - optimalGuess),
+      optimalGuess == targetNum ~ 1,
+    ),
+    
+    # Optimal probability of correct guess, entropy, info gain
+    prob.optimal = 1 / numAvailable.optimal,
+    entropy.optimal = -1 * prob.optimal * log2(prob.optimal) * numAvailable.optimal,
+    infoGain.optimal = entropy - entropy.optimal,
+    
+    # optimal excluded
+    numExcluded.optimal = numAvailable - numAvailable.optimal,
+    propExcluded.optimal = numExcluded.optimal / numAvailable,
+    
+    # comparison to optimal measures
+    infoGain.norm = infoGain / infoGain.optimal,
+    propExcluded.norm = propExcluded / propExcluded.optimal,
     
     # Add a thousandth so we can scale plots more readably
     mili = 1 / 1000,
@@ -358,7 +383,7 @@ We now save the processed dataframes for use in analysis scripts
 
 ```{r}
 
-write.csv(guesses, "../data/guesses_processed_cj.csv")
+write.csv(guesses, "../data/guesses_processed.csv")
 write.csv(games, "../data/games_processed.csv")
 write.csv(users, "../data/users_processed.csv")
 
