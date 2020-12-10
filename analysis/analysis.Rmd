@@ -14,7 +14,7 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# 1. Intro
+# Intro
 
 Some text here about why/what we're doing. Dataset
 
@@ -41,11 +41,11 @@ color3 <- paired[3]
 ```
 
 
-# 2. How optimal are player strategies?
+# How optimal are player strategies?
 
 How well do players approximate the optimal strategy (binary search)?
 
-## 2.1. What proportion of users and guesses are optimal?
+## What proportion of users and guesses are optimal?
 
 
 Roughly 1/3 of guesses were optimal.
@@ -103,17 +103,12 @@ top.users %>% head(10) %>% select(user, no_games, guesses.mean, guesses.total,
 ```
 
 
-## 2.2. How optimal are other players/guesses?
+## How optimal are other players/guesses?
 
-@Felix, @Naomi
 
-# 3. Other strategies
+# How do player strategies change over time?
 
-What other strategies do players use and how can we characterize them?
-
-# 4. How do player strategies change over time?
-
-# 4.1. Does player performance improve?
+## Does player performance improve?
 
 ```{r}
 
@@ -157,7 +152,7 @@ games %>%
   
 
 ```
-However, the proportion of optimal guesses markedly increases with the total number of games.
+Likewise, the proportion of optimal guesses markedly increases with the total number of games.
 
 ```{r}
 
@@ -203,6 +198,8 @@ anova(model.game_index.guesses, model.game_index.guesses.null)
 ```
 
 A linear mixed effects model (which takes into account the variance between participants), shows a stronger relationship (it predicts you will make one fewer guess every 150 games). A likelihood ratio test against a null model shows the effect to be significant.
+
+
 
 
 
