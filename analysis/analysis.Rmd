@@ -103,6 +103,26 @@ top.users %>% head(10) %>% select(user, no_games, guesses.mean, guesses.total,
 ```
 
 
+## How optimal are guesses over the course of a game?
+
+```{r}
+guesses %>%
+  ggplot(aes(attemptNum, isOptimal-1/(upperBound-lowerBound))) +
+  stat_summary_bin(fun.data="mean_cl_boot",
+                   geom="pointrange",
+                   binwidth = 1,
+                   color=color2) +
+  geom_smooth(method = 'lm') + 
+  theme_minimal() +
+  labs(
+    title="Proportion of optimal guesses for the n-th guess beyond chance",
+    x = "N-th guess",
+    y="Proportion of optimal guesses - chance of optimal guess"
+  )
+```
+This shows how often the optimal guess was made on the n-th guess for a particular game beyond what might be expected by chance. 0 corresponds to performing at chance, negative number indicate performing below chance. This shows that, on average, the 9th guess and later are less often optimal than what might be expected by chance. This is because most games end before the 9th guess is made—therefore, players with many guesses tend to be poor players.
+Of note is that the first guess tends to be optimal more often than others. The optimal first guess is always 50, a salient number.
+
 ## How optimal are other players/guesses?
 
 
