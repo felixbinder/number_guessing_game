@@ -193,6 +193,27 @@ games %>%
 
 ```
 The same cannot be said for the mean information gain, however. How come?
+<!-- I think somethings wrong with the information gain measure -->
+
+Finally, let's look at whether players get faster over the course of their career?
+
+```{r}
+games %>%
+  ggplot(aes(game_index, duration/numGuesses)) +
+  stat_summary_bin(fun.data="mean_cl_boot",
+                   geom="pointrange",
+                   binwidth = 5,
+                   color=color2) +
+  geom_smooth(method = 'lm') + 
+  theme_minimal() + 
+  labs(
+    title="Duration per guess of n-th game of user",
+    x = "No. previous games played by user",
+    y = "Duration per guess in seconds"
+  )
+```
+
+
 
 ```{r}
 
