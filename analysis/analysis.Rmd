@@ -41,12 +41,11 @@ color3 <- paired[3]
 ```
 
 
-# How optimal are player strategies?
+# 1. How optimal are player strategies?
 
 How well do players approximate the optimal strategy (binary search)?
 
-## What proportion of users and guesses are optimal?
-
+## 1.1. What proportion of users and guesses are optimal?
 
 Roughly 1/3 of guesses were optimal.
 
@@ -86,21 +85,52 @@ users %>%
 
 ```
 
-In order to rule out users who are just getting lucky, we can filter for users who maintained > 0.8 `propOptimal` across >1 games and > 8 guesses. There are 40 such players, a small number of whom have played many games across a long period of time. Most, as in the rest of the dataset, have just played a few games over the course of minutes.
+# 1.2. How optimal are non-optimal guesses?
+
+We can estimate the optimality of non-optimal guesses by finding how much information is gained by the guess relative to how much information would have been gained by an optimal guess.
+
+We can see that many guesses have an optimality of close to 1 (representing optimal guesses). The majority of guesses have an optimality between 0 and 1. The remaining guesses, with optimality of > 1, are "lucky guesses" (e.g. guessing "90" on attempt #1, when the target is 95, even though this would not be a good strategy in the long run).
 
 ```{r}
 
-top.users <- users %>%
-  filter(propOptimal > 0.8,
-         no_games > 1,
-         guesses.total > 8) %>%
-  arrange(desc(propOptimal))
-
-top.users %>% head(10) %>% select(user, no_games, guesses.mean, guesses.total,
-                                  career_length_bin, infoGain.mean, propExcluded.mean, 
-                                  propOptimal) %>% kable()
+guesses %>%
+  ggplot(aes(x = infoGain.norm)) + 
+  geom_density() +
+  theme_minimal() +
+  labs(
+    title="How much information did guesses gain compared to binary search?",
+    x = "Information gain / IG of binary search",
+    y = "Density"
+  )
 
 ```
+
+Here they are binned.
+
+I think the NAs are interesting/worth exploring more. They seem to be caused by cases where there is only one number available to guess. The way I've calculated infoGain, there is really no "information" gained in this situation. If only one number is left, you know that's it. Maybe we can redefine things if we want to include these cases.
+
+```{r}
+
+
+guesses %>%
+  mutate(ig.norm.bin = cut(infoGain.norm, breaks = c(-0.01, 0.5, 0.95, 1.05, 10),
+         labels = c("Poor (<0.5)", "Fair (0.5-0.95)", "Optimal (0.95-1.05)", "Lucky (1.05+)"))
+         ) %>%
+  group_by(ig.norm.bin) %>%
+  summarise(n=n()) %>%
+  ggplot(aes(x = ig.norm.bin, y = n, fill = ig.norm.bin)) + 
+  geom_bar(stat = "identity") +
+  scale_fill_brewer(palette = "Paired") +
+  theme_minimal() +
+  labs(
+    title="Guesses by optimality, binned.",
+    x = "Optimality",
+    y = "No. guesses",
+    fill = "Optimality"
+  )
+
+```
+
 
 
 ## How optimal are guesses over the course of a game?
@@ -122,8 +152,6 @@ guesses %>%
 ```
 This shows how often the optimal guess was made on the n-th guess for a particular game beyond what might be expected by chance. 0 corresponds to performing at chance, negative number indicate performing below chance. This shows that, on average, the 9th guess and later are less often optimal than what might be expected by chance. This is because most games end before the 9th guess is made—therefore, players with many guesses tend to be poor players.
 Of note is that the first guess tends to be optimal more often than others. The optimal first guess is always 50, a salient number.
-
-## How optimal are other players/guesses?
 
 
 # How do player strategies change over time?
