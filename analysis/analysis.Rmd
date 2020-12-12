@@ -48,7 +48,7 @@ How well do players approximate the optimal strategy (binary search)?
 ## What proportion of users and guesses are optimal?
 
 
-Roughly 1/3 of guesses were optimal.
+Roughly 1/3 of guesses were exactly optimal.
 
 ```{r}
 
@@ -64,7 +64,7 @@ guesses %>%
   labs(
     title="What proportion of guesses were optimal?",
     x = "Optimality",
-    y = "No. guesses",
+    y = "Proportion of guesses",
     fill = "Optimality"
   )
 
@@ -107,7 +107,7 @@ top.users %>% head(10) %>% select(user, no_games, guesses.mean, guesses.total,
 
 ```{r}
 guesses %>%
-  ggplot(aes(attemptNum, isOptimal-1/(upperBound-lowerBound))) +
+  ggplot(aes(attemptNum, isOptimal-(1/(upperBound-lowerBound)))) +
   stat_summary_bin(fun.data="mean_cl_boot",
                    geom="pointrange",
                    binwidth = 1,
@@ -117,8 +117,8 @@ guesses %>%
   labs(
     title="Proportion of optimal guesses for the n-th guess beyond chance",
     x = "N-th guess",
-    y="Proportion of optimal guesses - chance of optimal guess"
-  )
+    y="Proportion of optimal guesses - chance of optimal guess")+
+  scale_x_continuous(breaks = 1:15) 
 ```
 This shows how often the optimal guess was made on the n-th guess for a particular game beyond what might be expected by chance. 0 corresponds to performing at chance, negative number indicate performing below chance. This shows that, on average, the 9th guess and later are less often optimal than what might be expected by chance. This is because most games end before the 9th guess is made—therefore, players with many guesses tend to be poor players.
 Of note is that the first guess tends to be optimal more often than others. The optimal first guess is always 50, a salient number.
@@ -143,15 +143,15 @@ games %>%
   labs(
     title="Number of guesses for n-th game of user",
     x = "No. previous games played by user",
-    y = "Number of guesses"
-  )
+    y = "Number of guesses")
+
   
 
 ```
 
 Shows the mean number of guesses needed to complete each game against the "game index", or the number of games the user had played up until this point.
 
-There does seem to be a downward trend but it's not as dramatic as I was expecting. Maybe this is because people who play for a long period of time are not very good (e.g. children, definition of madness etc), or because no_guesses is too weak of a measure (it can still be tough to get the number quickly even if you are using a good strategy).
+There does seem to be a downward trend but it's not as dramatic as I was expecting. Maybe this is because people who play for a long period of time are not very good (e.g. children, definition of madness etc), or because no_guesses is too weak of a measure (it can still be tough to get the number quickly even if you are using a good strategy). People who play for a long time are overall performing pretty well because they are under the average number of guesses, which is probably about as good as they can get because what number they get is dependent on random chance. Can we quantify an average number of guesses if you were always using optimal strategy for comparison?
 
 ```{r}
 
@@ -192,7 +192,7 @@ games %>%
   
 
 ```
-The same cannot be said for the mean information gain, however. How come?
+The same cannot be said for the mean information gain, however. How come? How is infoGain measured?
 
 ```{r}
 
