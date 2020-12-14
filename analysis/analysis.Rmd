@@ -55,7 +55,7 @@ Our primary research questions are:
   * Are strategies reliable and rational? Or do they expose irrational biases in players' reasoning?
   
   
-**TODO*: Ed mentioned he wanted us to look at the distribution of career lengths etc. We have these ploits in the data_summary, but do you think we want to include any of that here/ in the writeup?
+**TODO*: Ed mentioned he wanted us to look at the distribution of career lengths etc. We have these plots in the data_summary, but do you think we want to include any of that here/ in the writeup?
 
 
 ```{r}
@@ -131,7 +131,7 @@ Do all users tend to take suboptimally long to complete games? Or do some player
 
 Plotting the mean number of guesses/game for each user, grouping by the number of games each user played, we can see that there is a high spread across users. Some users who played 2-4 games consistently take more than 7 guesses to complete games.
 
-**NOTE: more/better analysis needed here, although tbh we might not want to include this whole section as it is mostly setup/contextualisation to the optimality measures**
+**NOTE: more/better analysis needed here, although tbh we might not want to include this whole section as it is mostly setup/contextualisation to the optimality measures** We could use this section to show groupings of 5's and 10s for potential strategies (if we want to move it to question 3?)
 
 ```{r}
 
@@ -439,8 +439,36 @@ anova(model.game_index.guesses, model.game_index.guesses.null)
 
 A linear mixed effects model (which takes into account the variance between participants), shows a stronger relationship (it predicts you will make one fewer guess every 150 games). A likelihood ratio test against a null model shows the effect to be significant.
 
+# 3. What other strategies do players use and how can we characterize them?
 
+Potential Strategies can include picking numbers that are even or odd and rounded by 10's and 5's. 
 
+(is there a function that we can easily select out even or odds? or do we just write a function of like N/2 and if its true, filter it? not really sure...)
 
+This graph shows that mean guesses tend to congregate around 5's and 10's.
+
+move mean guess graph (distributions of 5's and 10s) here perhaps?
+
+```{r}
+
+users %>%
+  mutate(no_games_bin = cut(
+        no_games,
+        breaks = c(0, 1, 5, 200),
+        labels = c("1", "2-4", "5+"),
+        )
+  ) %>%
+  ggplot(aes(x=round(guesses.mean), fill=no_games_bin)) +
+  geom_bar() +
+  theme_minimal() +
+  scale_fill_brewer(palette="Paired") +
+  labs(
+    title="Distribution of mean guesses per game across users",
+    x = "Mean guesses per game",
+    y = "Number of users",
+    fill = "Games played"
+  )
+
+```
 
 
