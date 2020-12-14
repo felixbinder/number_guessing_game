@@ -53,6 +53,9 @@ Our primary research questions are:
   * Are there other patterns in players' guesses that imply other strategies?
   * How can we identify and categorize these strategies?
   * Are strategies reliable and rational? Or do they expose irrational biases in players' reasoning?
+  
+  
+**TODO*: Ed mentioned he wanted us to look at the distribution of career lengths etc. We have these ploits in the data_summary, but do you think we want to include any of that here/ in the writeup?
 
 
 ```{r}
@@ -84,12 +87,78 @@ The guessing game affords an optimal strategy: binary search. At each guess, the
 
 We define optimal search as `floor((upper+lower)/2)` where `upper` is the upper bound of the candidate range, and lower is the lower bound. At the start of the game, players have 100 candidates to choose among, so the optimal guess is 51 (or 50, which eliminates the same number of candidates on average: 49.5). The next guess will be 75 or 25 depending on whether the target number is above or below 51. The process continues, roughly halving the number of candidates at each guess until the target number is guessed (either because it happened to be in the centre of the range, or because only one number is left).
 
+## 1.1 Number of guesses per game
+
 Following binary search, then, at attempt `n`, we expect the number of candidates to be `100 / 2 ^ n`. Because `2 ^ 7 > 100`, we can deduce that no game would take longer than 7 guesses.
 
 **Todo? Confirm with simulation. They do this on the [kaggle notebook](https://www.kaggle.com/sdobson46/interesting-observations) in Python which we could adapt. Could do a nice plot of the distribution of no. of guesses it takes for each number with optimal search. Might also be nice to have an implementation written here.**
 
 
+By plotting the distribution of guesses per game, we can see that many games are completed suboptimally.
+
+```{r}
+
+
+games %>%
+  ggplot(aes(x = factor(numGuesses))) + 
+  geom_bar(fill=color1) +
+  theme_minimal() +
+  labs(
+    title="Distribution of number of guesses per game",
+    x = "Number of guesses",
+    y = "Number of games"
+  )
+
+```
+
+```{r}
+
+games %>%
+  filter(numGuesses > 7) %>%
+  nrow() / nrow(games)
+
+```
+
+Overall, around 29.2% of games required more than 7 guesses, and this is a conservative estimate for games completed sub-optimally, as most games would require fewer than 7 guesses using binary search.
+
+**TODO: Again, the simulation would help to make this point more forcefully.**
+
+## Mean no. guesses by user
+
+Do all users tend to take suboptimally long to complete games? Or do some players consistently complete games in < 7 guesses?
+
+**NOTE: Here is where it might be nice to refer back to the fact that some players have completed many games and some very few**
+
+Plotting the mean number of guesses/game for each user, grouping by the number of games each user played, we can see that there is a high spread across users. Some users who played 2-4 games consistently take more than 7 guesses to complete games.
+
+**NOTE: more/better analysis needed here, although tbh we might not want to include this whole section as it is mostly setup/contextualisation to the optimality measures**
+
+```{r}
+
+users %>%
+  mutate(no_games_bin = cut(
+        no_games,
+        breaks = c(0, 1, 5, 200),
+        labels = c("1", "2-4", "5+"),
+        )
+  ) %>%
+  ggplot(aes(x=round(guesses.mean), fill=no_games_bin)) +
+  geom_bar() +
+  theme_minimal() +
+  scale_fill_brewer(palette="Paired") +
+  labs(
+    title="Distribution of mean guesses per game across users",
+    x = "Mean guesses per game",
+    y = "Number of users",
+    fill = "Games played"
+  )
+
+```
+
+
 ## 1.1. What proportion of users and guesses are optimal?
+
+The number of guesses metric, however, is not very discriminative. Some games will take longer than other even using binary search.
 
 Roughly 1/3 of guesses were exactly optimal.
 
