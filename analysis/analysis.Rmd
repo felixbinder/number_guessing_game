@@ -156,11 +156,11 @@ users %>%
 ```
 
 
-## 1.1. What proportion of users and guesses are optimal?
+## 1.2. What proportion of users and guesses are optimal?
 
-The number of guesses metric, however, is not very discriminative. Some games will take longer than other even using binary search.
+The number of guesses metric, however, is not very discriminative. Some games will take longer than other even using binary search. We can directly check if each guess is optimal by calculating the optimal guess at each decision point and checking whether the user's guess is equal to the optimal guess. Importantly, as discussed above wrt. 50/51, there are many situations in which two guesses will eliminate equal numbers of candidates on average, and so we treat both values (50 or 51) as optimal.
 
-Roughly 1/3 of guesses were exactly optimal.
+Firstly, we can plot the number of guesses that were optimal overall.
 
 ```{r}
 
@@ -182,7 +182,19 @@ guesses %>%
 
 ```
 
+```{r}
+guesses %>%
+  filter(isOptimal == 1) %>%
+  nrow() / nrow(guesses)
+```
+
+33.3% of guesses were optimal overall, which indicates that users were not using binary search two thirds of the time.
+
+Again we can ask how the proportion of optimal guesses distributes across users (are most users making optimal guesses 1/3 of the time, or are 1/3 of the users making consistently optimal guesses).
+
 A unimodal distribution with a mean at around 0.25, shows most users produce an optimal guess around a quarter of the time. However, a small number of users are consistently producing optimal guesses more than 80% of the time.
+
+**TODO: Do more users guess optimally than would be expected by chance for random guessing? I feel like we don't have many stats tests in here yet!**
 
 ```{r}
 
@@ -197,6 +209,27 @@ users %>%
   )
 
 ```
+
+Another interesting question is whether many of these optimal guesses are produced early on (when people know by rote to guess 50 > 25/75 etc), or whether they are produced later on, when fewer available options force a higher rate of optimal guesses by chance (as `n` decreases, the probability of choosing optimally ~`1/n` increases).
+
+```{r}
+
+guesses %>%
+  mutate(isOptimal = factor(ifelse(isOptimal == 1, "Optimal", "Sub-optimal"))) %>%
+  ggplot(aes(x = attemptNum, fill=isOptimal)) + 
+  geom_bar(position = "fill") +
+  scale_fill_brewer(palette = "Paired") +
+  theme_minimal() +
+  labs(
+    title="What proportion of guesses were optimal?",
+    x = "Attempt number",
+    y = "Proportion of guesses",
+    fill = "Optimality"
+  )
+
+```
+
+Primarily, the latter effect seems to drive optimality, however, there is a higher number of optimal guesses on the first guess than the second and third, which might be due to participants learning (or intuiting) that 50 is a good first guess.
 
 # 1.2. How optimal are non-optimal guesses?
 
