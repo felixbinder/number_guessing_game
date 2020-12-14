@@ -16,7 +16,44 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Intro
 
-Some text here about why/what we're doing. Dataset
+
+## The dataset
+
+The dataset comes from a number guessing game running on Amazon Alexa. Users play a game with the voice assistant where the game randomly chooses a number between 1 to 100 and the user tries to guess the number. After a guess, the user is told whether their guess was too low or too high. The dataset includes 380,000 guesses across 50,000 games and 14,000 players. The dataset was sourced from [kaggle](https://www.kaggle.com/sdobson46/higher-or-lower-game). The dataset includes unique player IDs for all games as well as the date of the game and the outcome of the game. The dataset also allows for analysis of a player’s first game and information about whether the player returned to play more games. This dataset only includes completed games with no more than 15 guesses. The dataset excludes all guesses that Alexa did not understand or were invalid because they were not in the 1 to 100 number range. The dataset includes repeated guesses and guesses that conflict with previous hints provided by Alexa.
+
+### Codebook
+
+Dataframe `games` from `games.csv` file on kaggle.
+
+* 1 row per game played
+* 50881 rows total
+* 22 columns:
+  * `gameId` (factor w/ 50881 levels): Unique identifier for each game
+  * `user` (int): Unique identifier for each player
+  * `startTime` and `finishTime` (POSIX datetime): start and finish times of games.
+  * `duration` (int): Duration of game in seconds.
+  * `targetNum` (int): The randomly selected number between 1-100 that the player needs to guess
+  * `numGuesses` (int): Number of guesses the player needed to guess the target number
+  * `guess1` - `guess15` (int): The numbers which the user guessed.
+    
+
+## Research questions
+
+Our primary research questions are:
+
+1. How well do players approximate the optimal strategy?
+  1.1. What proportion of users adopt binary search (the optimal strategy)?
+  1.2. How does participant performance relate to this optimal benchmark?
+  
+2. How do players’ strategies change and/or improve over time?
+  2.1 Do players' responses improve over time (as measured by the information gain of each guess)?
+  2.2 Do players adopt or better approximate binary search over time or do they improve by adopting other strategies?
+
+3. What other strategies do players use and how can we characterize them?
+  * Are there other patterns in players' guesses that imply other strategies?
+  * How can we identify and categorize these strategies?
+  * Are strategies reliable and rational? Or do they expose irrational biases in players' reasoning?
+
 
 ```{r}
 # --- Setup --- #
@@ -43,7 +80,14 @@ color3 <- paired[3]
 
 # 1. How optimal are player strategies?
 
-How well do players approximate the optimal strategy (binary search)?
+The guessing game affords an optimal strategy: binary search. At each guess, the player ought to select a guess which will eliminate the largest proportion of numbers from the remaining candidate numbers. Because the player has no information about where in the range of candidates the target number will fall, the best strategy is to pick the number at the centre of the range. In this way, roughly half of the candidates will be removed at each guess.
+
+We define optimal search as `floor((upper+lower)/2)` where `upper` is the upper bound of the candidate range, and lower is the lower bound. At the start of the game, players have 100 candidates to choose among, so the optimal guess is 51 (or 50, which eliminates the same number of candidates on average: 49.5). The next guess will be 75 or 25 depending on whether the target number is above or below 51. The process continues, roughly halving the number of candidates at each guess until the target number is guessed (either because it happened to be in the centre of the range, or because only one number is left).
+
+Following binary search, then, at attempt `n`, we expect the number of candidates to be `100 / 2 ^ n`. Because `2 ^ 7 > 100`, we can deduce that no game would take longer than 7 guesses.
+
+**Todo? Confirm with simulation. They do this on the [kaggle notebook](https://www.kaggle.com/sdobson46/interesting-observations) in Python which we could adapt. Could do a nice plot of the distribution of no. of guesses it takes for each number with optimal search. Might also be nice to have an implementation written here.**
+
 
 ## 1.1. What proportion of users and guesses are optimal?
 
