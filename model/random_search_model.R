@@ -13,7 +13,7 @@ for (gameID in 1:nrow(games)){
   print(paste(c(gameID,'/',nrow(games))))
   while (TRUE){
     guess = sample.int(upper-lower+1,1)+lower-1 #generate guess
-    attemptNum = X+1
+    attemptNum = attemptNum+1
     #save the guess
     # df.rs[i,] = c(gameID,X,target,guess)
     # i = i+1
