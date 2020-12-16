@@ -1,18 +1,26 @@
 #Generate a dataframe of random legal guesses
-df.rs = data.frame(matrix(ncol = 4, nrow = 0))
-colnames(df.rs) <- c("gameId","attemptNum","targetNum","guess")
+i = 1
+gameIDs = c()
+guesses = c()
+attemptNums = c()
+targetNums = c()
 
-for (gameID in 1:10000){
+for (gameID in 1:nrow(games)){
   target = sample.int(100,1)
-  guesses = c()
   lower = 1
   upper = 100
-  X = 0
+  attemptNum = 0
+  print(paste(c(gameID,'/',nrow(games))))
   while (TRUE){
     guess = sample.int(upper-lower+1,1)+lower-1 #generate guess
-    X = X+1
+    attemptNum = X+1
     #save the guess
-    df.rs[nrow(df.rs)+1,] = c(gameID,X,target,guess)
+    # df.rs[i,] = c(gameID,X,target,guess)
+    # i = i+1
+    gameIDs = c(gameIDs,gameID)
+    guesses = c(guesses,guess)
+    attemptNums = c(attemptNums,attemptNum)
+    targetNums = c(targetNums,target)
     if (guess == target){ #won
       break
     }
@@ -25,6 +33,10 @@ for (gameID in 1:10000){
   }
 }
 
+df.rs = data.frame(gameId = gameIDs,
+                   attemptNum = attemptNums,
+                   targetNum = targetNums,
+                   guess = guesses)
 
 df.rs %>% ggplot(aes(x=guess))+
   geom_histogram(bins = 100)

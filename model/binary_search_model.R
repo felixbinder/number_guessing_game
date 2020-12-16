@@ -1,17 +1,26 @@
 #Generate a dataframe of binary search for all 100 possible guesses
-df.bs = data.frame(matrix(ncol = 4, nrow = 0))
-colnames(df.bs) <- c("gameId","attemptNum","targetNum","guess")
+gameID = 0
+gameIDs = c()
+guesses = c()
+attemptNums = c()
+targetNums = c()
 
-for (target in 1:100){
-  guesses = c()
+for (target in rep(1:100,times=round(nrow(games)/100))){
   lower = 1
   upper = 100
   X = 0
+  gameID = gameID + 1
+  print(paste(c(gameID,'/',round(nrow(games)/100)*100)))
   while (TRUE){
     guess = as.integer((upper-lower)/2+lower) #generate guess (will round up if odd)
     X = X+1
     #save the guess
-    df.bs[nrow(df.bs)+1,] = c(target,X,target,guess)
+    # df.bs[i,] = c(gameID,X,target,guess)
+    # i = i+1 
+    gameIDs = c(gameIDs,gameID)
+    guesses = c(guesses,guess)
+    attemptNums = c(attemptNums,X)
+    targetNums = c(targetNums,target)
     if (guess == target){ #won
       break
     }
@@ -24,9 +33,10 @@ for (target in 1:100){
   }
 }
 
-
-df.bs %>% ggplot(aes(x=guess))+
-  geom_histogram(bins = 100)
+df.bs = data.frame(gameId = gameIDs,
+                   attemptNum = attemptNums,
+                   targetNum = targetNums,
+                   guess = guesses)
 
 guesses.binary <- df.bs %>%
   group_by(gameId) %>%
@@ -116,4 +126,3 @@ guesses.binary <- df.bs %>%
   ungroup()
 
 write_csv(guesses.binary,"data/guesses_binary_search.csv")
-
