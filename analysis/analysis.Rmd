@@ -67,12 +67,18 @@ guesses <- read.csv('../data/guesses_processed.csv')
 games <- read.csv('../data/games_processed.csv')
 users <- read.csv('../data/users_processed.csv')
 
+# Load simulation data
+guesses.binary = read.csv('../data/guesses_binary_search.csv')
+guesses.random = read.csv('../data/guesses_random_search.csv')
+
 # Create color palette
 paired <- brewer.pal(6, "Paired")
 color1 <- paired[1]
 color2 <- paired[2]
 color3 <- paired[3]
 
+color.binary = "green"
+color.random = "red"
 ```
 
 
@@ -81,6 +87,69 @@ color3 <- paired[3]
 The guessing game affords an optimal strategy: binary search. At each guess, the player ought to select a guess which will eliminate the largest proportion of numbers from the remaining candidate numbers. Because the player has no information about where in the range of candidates the target number will fall, the best strategy is to pick the number at the centre of the range. In this way, roughly half of the candidates will be removed at each guess.
 
 We define optimal search as `floor((upper+lower)/2)` where `upper` is the upper bound of the candidate range, and lower is the lower bound. At the start of the game, players have 100 candidates to choose among, so the optimal guess is 51 (or 50, which eliminates the same number of candidates on average: 49.5). The next guess will be 75 or 25 depending on whether the target number is above or below 51. The process continues, roughly halving the number of candidates at each guess until the target number is guessed (either because it happened to be in the centre of the range, or because only one number is left).
+
+Using binary search, some numbers are easy to guess (50 requires only one guess), while others are hard to guess. However, no number needs more than 7 guesses to get correctly under binary search.
+
+```{r}
+guesses.binary %>% group_by(targetNum) %>% 
+  summarise(numGuesses = n()/length(unique(gameId))) %>% 
+  ggplot(aes(x = factor(targetNum), y = numGuesses)) + 
+  geom_bar(fill=color.binary, stat = "identity") +
+  theme_minimal() +
+  labs(
+    title="Number of guesses needed for target number under binary search",
+    x = "Target number",
+    y = "Number of guesses required"
+  )
+```
+
+```{r}
+guesses.random %>% group_by(targetNum) %>% 
+  summarise(numGuesses = n()/length(unique(gameId))) %>% 
+  ggplot(aes(x = factor(targetNum), y = numGuesses)) + 
+  geom_bar(fill=color.random, stat = "identity") +
+  theme_minimal() +
+  labs(
+    title="Number of guesses needed for target number under random search",
+    x = "Target number",
+    y = "Number of guesses required"
+  )
+```
+```{r}
+guesses %>% group_by(targetNum) %>% 
+  summarise(numGuesses = n()/length(unique(gameId))) %>% 
+  ggplot(aes(x = factor(targetNum), y = numGuesses)) + 
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  labs(
+    title="Number of guesses for target number",
+    x = "Target number",
+    y = "Number of guesses required"
+  )
+```
+
+```{r}
+guesses %>% group_by(targetNum) %>% 
+  summarise(numGuesses = n()/length(unique(gameId))) %>% 
+  ggplot(aes(x = factor(targetNum), y = numGuesses)) + 
+  geom_bar(stat = "identity") +
+  geom_point(data = guesses.binary %>% 
+             group_by(targetNum) %>% 
+             summarise(numGuesses = n()/length(unique(gameId))),
+    stat = "identity",
+    color = color.binary) +
+  geom_point(data = guesses.random %>% 
+             group_by(targetNum) %>% 
+             summarise(numGuesses = n()/length(unique(gameId))),
+    stat = "identity",
+    color = color.random) +
+  theme_minimal() +
+  labs(
+    title="Number of guesses for target number",
+    x = "Target number",
+    y = "Number of guesses required"
+  )
+```
 
 ## 1.1 Number of guesses per game
 
@@ -96,7 +165,20 @@ By plotting the distribution of guesses per game, we can see that many games are
 
 games %>%
   ggplot(aes(x = factor(numGuesses))) + 
-  geom_bar(fill=color1) +
+  geom_bar(fill=color1, stat = "count") +
+  geom_point(data = guesses.binary %>%
+             group_by(gameId) %>%
+             summarise(numGuesses = n()/length(unique(gameId))) %>%
+             mutate(numGuesses = factor(as.numeric(numGuesses))),
+    stat = "count",
+    color = color.binary) +
+  geom_point(data = guesses.random %>%
+             group_by(gameId) %>%
+             summarise(numGuesses = n()/length(unique(gameId))) %>%
+             filter(numGuesses <= 15) %>% 
+             mutate(numGuesses = factor(as.numeric(numGuesses))),
+  stat = "count",
+  color = color.random) +
   theme_minimal() +
   labs(
     title="Distribution of number of guesses per game",
@@ -106,17 +188,8 @@ games %>%
 
 ```
 
-```{r}
 
-games %>%
-  filter(numGuesses > 7) %>%
-  nrow() / nrow(games)
-
-```
-
-Overall, around 29.2% of games required more than 7 guesses, and this is a conservative estimate for games completed sub-optimally, as most games would require fewer than 7 guesses using binary search.
-
-**TODO: Again, the simulation would help to make this point more forcefully.**
+Overall, around `r round(games %>%filter(numGuesses > 7) %>%nrow() / nrow(games)*100,2)`% of games required more than 7 guesses, and this is a conservative estimate for games completed sub-optimally, as most games would require fewer than 7 guesses using binary search.
 
 ## Mean no. guesses by user
 
@@ -166,6 +239,20 @@ guesses %>%
             .groups = "drop") %>%
   ggplot(aes(x = isOptimal, y = prop, fill=isOptimal)) + 
   geom_bar(stat = "identity") +
+  geom_point(data = guesses.random %>%
+              mutate(isOptimal = factor(ifelse(isOptimal == 1, "Optimal", "Sub-optimal"))) %>%
+              group_by(isOptimal) %>%
+              summarise(prop = n() / nrow(guesses),
+                        .groups = "drop"),
+             aes(x = isOptimal, y = prop),
+             color= color.random)+
+  geom_point(data = guesses.binary %>%
+              mutate(isOptimal = factor(ifelse(isOptimal == 1, "Optimal", "Sub-optimal"))) %>%
+              group_by(isOptimal) %>%
+              summarise(prop = n() / nrow(guesses),
+                        .groups = "drop"),
+             aes(x = isOptimal, y = prop),
+             color= color.binary)+
   scale_fill_brewer(palette = "Paired") +
   theme_minimal() +
   labs(
@@ -176,6 +263,7 @@ guesses %>%
   )
 
 ```
+
 
 ```{r}
 guesses %>%
@@ -196,6 +284,8 @@ A unimodal distribution with a mean at around 0.25, shows most users produce an 
 users %>%
   ggplot(aes(x=propOptimal)) +
   geom_density(color=color1, size=1) +
+  geom_vline(xintercept = guesses.binary %>% pull(isOptimal) %>% mean(), color=color.binary)+
+  geom_vline(xintercept = guesses.random %>% pull(isOptimal) %>% mean(), color=color.random)+
   theme_minimal() +
   labs(
     title="Proportion of guesses which were optimal by user",
@@ -211,8 +301,19 @@ Another interesting question is whether many of these optimal guesses are produc
 
 guesses %>%
   mutate(isOptimal = factor(ifelse(isOptimal == 1, "Optimal", "Sub-optimal"))) %>%
-  ggplot(aes(x = attemptNum, fill=isOptimal)) + 
-  geom_bar(position = "fill") +
+  ggplot(aes(x = attemptNum)) + 
+  geom_bar(aes(fill=isOptimal),position = "fill") +
+  geom_point(data = guesses.binary %>%
+                    group_by(attemptNum) %>% 
+                    summarise(mean = mean(isOptimal)),
+             aes(x=attemptNum,y=mean),
+             color = color.binary)+
+  geom_point(data = guesses.random %>%
+                    group_by(attemptNum) %>% 
+                    summarise(mean = mean(isOptimal)) %>% 
+                    filter(attemptNum <= 15),
+             aes(x=attemptNum,y=mean),
+             color = color.random)+
   scale_fill_brewer(palette = "Paired") +
   theme_minimal() +
   labs(
@@ -236,6 +337,16 @@ guesses %>%
                    binwidth = 1,
                    color=color2) +
   geom_smooth(method = 'lm') + 
+  stat_summary_bin(data = guesses.binary,
+                   fun.data="mean_cl_boot",
+                   geom="pointrange",
+                   binwidth = 1,
+                   color=color.binary) +
+  stat_summary_bin(data = guesses.random %>% filter(attemptNum < 15),
+                   fun.data="mean_cl_boot",
+                   geom="pointrange",
+                   binwidth = 1,
+                   color=color.random) +
   theme_minimal() +
   labs(
     title="Proportion of optimal guesses for the n-th guess beyond chance",
@@ -249,75 +360,93 @@ Of note is that the first guess tends to be optimal more often than others. The 
 
 ## 1.3. How much information is gained by guesses compared to optimal guesses?
 
-The optimality of each guess is still a very crude measure. Some "non-optimal" guesses may be very close to the optimal guess, and eliminate a simular number of candidates. We want to find a metric that is sensitive to the number of candidates which were eliminated by each guess, relative to how many would have been eliminated by an optimal guess.
-
-We could use this measure directly: proportion of candidates eliminated divided by the proportion that would have been eliminated by the optimal guess:
-
-```{r}
-
-guesses %>%
-  ggplot(aes(x = propExcluded.norm)) + 
-  geom_density(color=color1, size=1) +
-  theme_minimal() +
-  labs(
-    title="Proportion of candidates eliminated by relative to optimal guess",
-    x = "Relative proportion eliminated",
-    y = "Density"
-  )
-
-```
-
-(N.B. I'm not entirely sure what the downside of doing this would be, but Ed suggested using info gain / optimal info gain so I think we should do that).
-
-We can also define the amount of **information** gained by each guess. In Information Theory, "the [entropy](https://en.wikipedia.org/wiki/Entropy_(information_theory) of a random variable is the average level of "information", "surprise", or "uncertainty" inherent in the variable's possible outcomes." In our case, because each candidate is as likely as the next, entropy is directly proportional to the number of candidates (the more candidates remaining, the more uncertain you are about which is correct).
+We can also define the expected amount of **information** gained by each guess. In Information Theory, "the [entropy](https://en.wikipedia.org/wiki/Entropy_(information_theory) of a random variable is the average level of "information", "surprise", or "uncertainty" inherent in the variable's possible outcomes." In our case, because each candidate is as likely as the next, entropy is directly proportional to the number of candidates (the more candidates remaining, the more uncertain you are about which is correct).
 
 We can calculate the entropy of our available candidates by summing `-P(x) * log2(P(x))` for each `x` where `P(x)` is the probability that each candidate in our set is the target number. Because the probability of each candidate is the same (`1 / n`), this reduces to `H = -n * ((1/n) * log2(1/n))`.
 
-We can then calculate the **information gain** of each guess, by calculating the entropy of the space *before* the guess was made and subtracting this from the entropy *after* the guess.
-
-Finally, we can figure out what `n` (i.e. the number of candidates) *would* be if we had made the optimal guess at each decision point. So we can figure out what the entropy would be and what the optimal information gain. Therefore we can figure out what our information gain is relative to the optimal information gain. Here I've called this `infoGain.norm` as in "normalised to optimal", which is probably not the best name.
-
-We can see that many guesses have an optimality of close to 1 (representing optimal guesses). The majority of guesses have an optimality between 0 and 1. The remaining guesses, with optimality of > 1, are "lucky guesses" (e.g. guessing "90" on attempt #1, when the target is 95, even though this would not be a good strategy in the long run).
+We can then calculate the **expected information gain (EIG)** of each guess, by calculating the entropy of the space *before* the guess was made and subtracting this from the expected entropy *after* the guess.
 
 ```{r}
 
 guesses %>%
-  ggplot(aes(x = infoGain.norm)) + 
+  ggplot(aes(x = EIG)) + 
   geom_density(color=color1, size=1) +
+  geom_density(data = guesses.binary,
+    color=color.binary, size=1) +
+  geom_density(data = guesses.random,
+    color=color.random, size=1) +
+  theme_minimal() +
+  ylim(0,4)+
+  labs(
+    title="Distribution of EIG",
+    x = "Expected Information Gain",
+    y = "Density"
+  )
+
+```
+Finally, we can figure out what `n` (i.e. the number of candidates) *would* be if we had made the optimal guess at each decision point. So we can figure out what the expected entropy and optimal information gain would be.
+
+```{r}
+
+guesses %>%
+  ggplot(aes(x = EIG.optimal)) + 
+  geom_density(color=color1, size=1) +
+  geom_density(data = guesses.binary,
+    color=color.binary, size=1) +
+  geom_density(data = guesses.random,
+    color=color.random, size=1) +
   theme_minimal() +
   labs(
-    title="How much information did guesses gain compared to binary search?",
-    x = "Information gain / IG of binary search",
+    title="Distribution of optimal EIG",
+    x = "EIG of binary search",
     y = "Density"
   )
 
 ```
 
-Here they are binned.
-
-I think the NAs are interesting/worth exploring more. They seem to be caused by cases where there is only one number available to guess. The way I've calculated infoGain, there is really no "information" gained in this situation. If only one number is left, you know that's it. Maybe we can redefine things if we want to include these cases.
+Therefore we can figure out what our information gain is relative to the optimal information gain. Here I've called this `EIG.relative` as in "relative to optimal", which is probably not the best name.
 
 ```{r}
 
-
 guesses %>%
-  mutate(ig.norm.bin = cut(infoGain.norm, breaks = c(-0.01, 0.5, 0.95, 1.05, 10),
-         labels = c("Poor (<0.5)", "Fair (0.5-0.95)", "Optimal (0.95-1.05)", "Lucky (1.05+)"))
-         ) %>%
-  group_by(ig.norm.bin) %>%
-  summarise(n=n()) %>%
-  ggplot(aes(x = ig.norm.bin, y = n, fill = ig.norm.bin)) + 
-  geom_bar(stat = "identity") +
-  scale_fill_brewer(palette = "Paired") +
+  ggplot(aes(x = EIG.relative)) + 
+  geom_density(color=color1, size=1) +
+  geom_density(data = guesses.binary,
+    color=color.binary, size=1) +
+  geom_density(data = guesses.random,
+    color=color.random, size=1) +
+  ylim(0,2)+
   theme_minimal() +
   labs(
-    title="Guesses by optimality, binned.",
-    x = "Optimality",
-    y = "No. guesses",
-    fill = "Optimality"
+    title="Distribution of optimal EIG",
+    x = "EIG of binary search",
+    y = "Density"
   )
 
 ```
+We can see that many guesses have an optimality of close to 1 (representing optimal guesses) with a long tail drifting off to very poor
+
+Here they are binned.
+
+```{r}
+
+guesses %>%
+  mutate(eig.bin = cut_interval(EIG.relative, length=0.1,
+                                labels = seq(0.1, 1, 0.1))
+         ) %>%
+  group_by(eig.bin) %>%
+  summarise(prop=n()/ nrow(guesses)) %>%
+  ggplot(aes(x = eig.bin, y = prop)) + 
+  geom_bar(stat = "identity", fill=color1) +
+  theme_minimal() +
+  labs(
+    title="Distribution of optimal EIG",
+    x = "EIG of binary search",
+    y = "Density"
+  )
+
+```
+
 
 
 # 2. How do player strategies change over time?
@@ -333,6 +462,18 @@ games %>%
                    binwidth = 5,
                    color=color2) +
   geom_smooth(method = 'lm') + 
+  geom_hline(yintercept = guesses.random %>%
+                          group_by(gameId) %>% 
+                          summarise(n = n()) %>% 
+                          pull(n) %>% mean(),
+             color = color.random
+  )+
+  geom_hline(yintercept = guesses.binary %>%
+                          group_by(gameId) %>% 
+                          summarise(n = n()) %>% 
+                          pull(n) %>% mean(),
+             color = color.binary
+  )+
   theme_minimal() + 
   labs(
     title="Number of guesses for n-th game of user",
@@ -356,6 +497,14 @@ games %>%
                    binwidth = 5,
                    color=color2) +
   geom_smooth(method = 'lm') + 
+  geom_hline(yintercept = guesses.random %>%
+                          pull(isOptimal) %>% mean(),
+             color = color.random
+  )+
+  geom_hline(yintercept = guesses.binary %>%
+                          pull(isOptimal) %>% mean(),
+             color = color.binary
+  )+
   theme_minimal() + 
   ylim(0,1) +
   labs(
@@ -368,6 +517,7 @@ games %>%
 ```
 Likewise, the proportion of optimal guesses markedly increases with the total number of games.
 
+**SOMETHING WRONG W INFOGAIN HERE**
 ```{r}
 
 games %>%
@@ -377,6 +527,14 @@ games %>%
                    binwidth = 5,
                    color=color2) +
   geom_smooth(method = 'lm') + 
+  geom_hline(yintercept = guesses.random %>%
+                          pull(infoGain) %>% mean(),
+             color = color.random
+  )+
+  geom_hline(yintercept = guesses.binary %>%
+                          pull(infoGain) %>% mean(),
+             color = color.binary
+  )+
   theme_minimal() + 
   labs(
     title="Mean information gain per guess for n-th game of user",
