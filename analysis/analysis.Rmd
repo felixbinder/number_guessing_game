@@ -365,14 +365,16 @@ Of note is that the first guess tends to be optimal more often than others. The 
 
 ## 1.3. How much information is gained by guesses compared to optimal guesses?
 
-The optimality of each guess is still a very crude measure. Some "non-optimal" guesses may be very close to the optimal guess, and eliminate a simular number of candidates. We want to find a metric that is sensitive to the number of candidates which were eliminated by each guess, relative to how many would have been eliminated by an optimal guess.
+We can also define the expected amount of **information** gained by each guess. In Information Theory, "the [entropy](https://en.wikipedia.org/wiki/Entropy_(information_theory) of a random variable is the average level of "information", "surprise", or "uncertainty" inherent in the variable's possible outcomes." In our case, because each candidate is as likely as the next, entropy is directly proportional to the number of candidates (the more candidates remaining, the more uncertain you are about which is correct).
 
-We could use this measure directly: proportion of candidates eliminated divided by the proportion that would have been eliminated by the optimal guess:
+We can calculate the entropy of our available candidates by summing `-P(x) * log2(P(x))` for each `x` where `P(x)` is the probability that each candidate in our set is the target number. Because the probability of each candidate is the same (`1 / n`), this reduces to `H = -n * ((1/n) * log2(1/n))`.
+
+We can then calculate the **expected information gain (EIG)** of each guess, by calculating the entropy of the space *before* the guess was made and subtracting this from the expected entropy *after* the guess.
 
 ```{r}
 
 guesses %>%
-  ggplot(aes(x = propExcluded.norm)) + 
+  ggplot(aes(x = EIG)) + 
   geom_density(color=color1, size=1) +
   geom_density(data = guesses.binary,
     color=color.binary, size=1) +
@@ -381,29 +383,34 @@ guesses %>%
   theme_minimal() +
   ylim(0,4)+
   labs(
-    title="Proportion of candidates eliminated by relative to optimal guess",
-    x = "Relative proportion eliminated",
+    title="Distribution of EIG",
+    x = "Expected Information Gain",
+    y = "Density"
+  )
+
+```
+Finally, we can figure out what `n` (i.e. the number of candidates) *would* be if we had made the optimal guess at each decision point. So we can figure out what the expected entropy and optimal information gain would be.
+
+```{r}
+
+guesses %>%
+  ggplot(aes(x = EIG.optimal)) + 
+  geom_density(color=color1, size=1) +
+  theme_minimal() +
+  labs(
+    title="Distribution of optimal EIG",
+    x = "EIG of binary search",
     y = "Density"
   )
 
 ```
 
-(N.B. I'm not entirely sure what the downside of doing this would be, but Ed suggested using info gain / optimal info gain so I think we should do that).
-
-We can also define the amount of **information** gained by each guess. In Information Theory, "the [entropy](https://en.wikipedia.org/wiki/Entropy_(information_theory) of a random variable is the average level of "information", "surprise", or "uncertainty" inherent in the variable's possible outcomes." In our case, because each candidate is as likely as the next, entropy is directly proportional to the number of candidates (the more candidates remaining, the more uncertain you are about which is correct).
-
-We can calculate the entropy of our available candidates by summing `-P(x) * log2(P(x))` for each `x` where `P(x)` is the probability that each candidate in our set is the target number. Because the probability of each candidate is the same (`1 / n`), this reduces to `H = -n * ((1/n) * log2(1/n))`.
-
-We can then calculate the **information gain** of each guess, by calculating the entropy of the space *before* the guess was made and subtracting this from the entropy *after* the guess.
-
-Finally, we can figure out what `n` (i.e. the number of candidates) *would* be if we had made the optimal guess at each decision point. So we can figure out what the entropy would be and what the optimal information gain. Therefore we can figure out what our information gain is relative to the optimal information gain. Here I've called this `infoGain.norm` as in "normalised to optimal", which is probably not the best name.
-
-We can see that many guesses have an optimality of close to 1 (representing optimal guesses). The majority of guesses have an optimality between 0 and 1. The remaining guesses, with optimality of > 1, are "lucky guesses" (e.g. guessing "90" on attempt #1, when the target is 95, even though this would not be a good strategy in the long run).
+Therefore we can figure out what our information gain is relative to the optimal information gain. Here I've called this `EIG.relative` as in "relative to optimal", which is probably not the best name.
 
 ```{r}
 
 guesses %>%
-  ggplot(aes(x = infoGain.norm)) + 
+  ggplot(aes(x = EIG.relative)) + 
   geom_density(color=color1, size=1) +
   geom_density(data = guesses.binary,
     color=color.binary, size=1) +
@@ -412,38 +419,35 @@ guesses %>%
   ylim(0,2)+
   theme_minimal() +
   labs(
-    title="How much information did guesses gain compared to binary search?",
-    x = "Information gain / IG of binary search",
+    title="Distribution of optimal EIG",
+    x = "EIG of binary search",
+    y = "Density"
+  )
+
+```
+We can see that many guesses have an optimality of close to 1 (representing optimal guesses) with a long tail drifting off to very poor
+
+Here they are binned.
+
+```{r}
+
+guesses %>%
+  mutate(eig.bin = cut_interval(EIG.relative, length=0.1,
+                                labels = seq(0.1, 1, 0.1))
+         ) %>%
+  group_by(eig.bin) %>%
+  summarise(prop=n()/ nrow(guesses)) %>%
+  ggplot(aes(x = eig.bin, y = prop)) + 
+  geom_bar(stat = "identity", fill=color1) +
+  theme_minimal() +
+  labs(
+    title="Distribution of optimal EIG",
+    x = "EIG of binary search",
     y = "Density"
   )
 
 ```
 
-Here they are binned.
-
-I think the NAs are interesting/worth exploring more. They seem to be caused by cases where there is only one number available to guess. The way I've calculated infoGain, there is really no "information" gained in this situation. If only one number is left, you know that's it. Maybe we can redefine things if we want to include these cases.
-
-```{r}
-
-
-guesses %>%
-  mutate(ig.norm.bin = cut(infoGain.norm, breaks = c(-0.01, 0.5, 0.95, 1.05, 10),
-         labels = c("Poor (<0.5)", "Fair (0.5-0.95)", "Optimal (0.95-1.05)", "Lucky (1.05+)"))
-         ) %>%
-  group_by(ig.norm.bin) %>%
-  summarise(n=n()) %>%
-  ggplot(aes(x = ig.norm.bin, y = n, fill = ig.norm.bin)) + 
-  geom_bar(stat = "identity") +
-  scale_fill_brewer(palette = "Paired") +
-  theme_minimal() +
-  labs(
-    title="Guesses by optimality, binned.",
-    x = "Optimality",
-    y = "No. guesses",
-    fill = "Optimality"
-  )
-
-```
 
 
 # 2. How do player strategies change over time?
