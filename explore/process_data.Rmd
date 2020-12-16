@@ -169,7 +169,6 @@ get_EIG<- function(lower, upper, guess) {
 }
 
 guesses <- guesses %>%
-  head(1000) %>%
   group_by(gameId) %>%
   mutate(guessId = paste(gameId, attemptNum, sep = "_")) %>%
   arrange(gameId, attemptNum) %>%
