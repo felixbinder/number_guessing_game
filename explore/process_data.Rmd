@@ -143,7 +143,33 @@ We create the following variables:
 
 ```{r}
 
+get_EIG<- function(lower, upper, guess) {
+  k.cur = upper-lower+1
+  h.cur = log2(k.cur)
+
+  # Info if greater
+  k.greater = upper-guess
+  p.greater = k.greater / k.cur
+  h.greater = ifelse(p.greater > 0, p.greater * log2(k.greater), 0)
+  
+  # Info if lower
+  k.lower = guess-lower
+  p.lower = k.lower/k.cur
+  h.lower = ifelse(p.lower > 0, p.lower * log2(k.lower), 0)
+  
+  # Info if correct
+  k.correct = 1
+  p.correct = k.correct/k.cur
+  h.correct = p.correct * log2(k.correct)
+  
+  # Sum
+  h.next  = h.lower + h.greater + h.correct
+  
+  h.cur - h.next
+}
+
 guesses <- guesses %>%
+  head(1000) %>%
   group_by(gameId) %>%
   mutate(guessId = paste(gameId, attemptNum, sep = "_")) %>%
   arrange(gameId, attemptNum) %>%
@@ -200,6 +226,11 @@ guesses <- guesses %>%
     numExcluded = numAvailable - lead(numAvailable, default = 1),
     propExcluded = numExcluded / numAvailable,
     
+    # ----- Expected IG ---- #
+    EIG = get_EIG(lowerBound, upperBound, guess),
+    EIG.optimal = get_EIG(lowerBound, upperBound, optimalGuess),
+    EIG.relative = EIG / EIG.optimal,
+        
     # ----- Repeat info measures for optimal guess ---- #
     
     # Optimal response
@@ -230,6 +261,7 @@ guesses <- guesses %>%
   ) %>%
   ungroup()
 
+
 ```
 
 "Out of bounds" guesses can be the result of many different causes. Inattention, forgetfulness, distraction, lack of effort, and user development (ex./ small children) are all potential sources. As a result, we have chosen to exclude all games which include an "out of bounds" guess.
@@ -244,6 +276,14 @@ guesses<-guesses[!guesses$gameId %in% outofbounds_exclusions$gameId,]
 
 ```
 
+We also remove guesses where the number of candidates available at the start of the guess is 1. From an information-theoretic point of view, no information is gained by these guesses, and the user can know for certain that the number they guess is the correct number.
+
+```{r}
+
+guesses <- guesses %>%
+  filter(numAvailable > 1)
+
+```
 
 `infoGain` and `propExcluded` are highly correlated, but the latter is more interpretable.
 
@@ -251,7 +291,9 @@ guesses<-guesses[!guesses$gameId %in% outofbounds_exclusions$gameId,]
 
 cor(guesses$infoGain, guesses$propExcluded)
 
-
+guesses %>%
+  select(numAvailable, guess, optimalGuess, entropy, infoGain, EIG) %>%
+  filter(guess == optimalGuess)
 ```
   
   
