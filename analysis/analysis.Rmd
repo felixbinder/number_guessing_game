@@ -72,12 +72,18 @@ guesses <- read.csv('../data/guesses_processed.csv')
 games <- read.csv('../data/games_processed.csv')
 users <- read.csv('../data/users_processed.csv')
 
+# Load simulation data
+guesses.binary = read.csv('../data/guesses_binary_search.csv')
+guesses.random = read.csv('../data/guesses_random_search.csv')
+
 # Create color palette
 paired <- brewer.pal(6, "Paired")
 color1 <- paired[1]
 color2 <- paired[2]
 color3 <- paired[3]
 
+color.binary = "green"
+color.random = "red"
 ```
 
 
@@ -86,6 +92,69 @@ color3 <- paired[3]
 The guessing game affords an optimal strategy: binary search. At each guess, the player ought to select a guess which will eliminate the largest proportion of numbers from the remaining candidate numbers. Because the player has no information about where in the range of candidates the target number will fall, the best strategy is to pick the number at the centre of the range. In this way, roughly half of the candidates will be removed at each guess.
 
 We define optimal search as `floor((upper+lower)/2)` where `upper` is the upper bound of the candidate range, and lower is the lower bound. At the start of the game, players have 100 candidates to choose among, so the optimal guess is 51 (or 50, which eliminates the same number of candidates on average: 49.5). The next guess will be 75 or 25 depending on whether the target number is above or below 51. The process continues, roughly halving the number of candidates at each guess until the target number is guessed (either because it happened to be in the centre of the range, or because only one number is left).
+
+Using binary search, some numbers are easy to guess (50 requires only one guess), while others are hard to guess. However, no number needs more than 7 guesses to get correctly under binary search.
+
+```{r}
+guesses.binary %>% group_by(targetNum) %>% 
+  summarise(numGuesses = n()/length(unique(gameId))) %>% 
+  ggplot(aes(x = factor(targetNum), y = numGuesses)) + 
+  geom_bar(fill=color.binary, stat = "identity") +
+  theme_minimal() +
+  labs(
+    title="Number of guesses needed for target number under binary search",
+    x = "Target number",
+    y = "Number of guesses required"
+  )
+```
+
+```{r}
+guesses.random %>% group_by(targetNum) %>% 
+  summarise(numGuesses = n()/length(unique(gameId))) %>% 
+  ggplot(aes(x = factor(targetNum), y = numGuesses)) + 
+  geom_bar(fill=color.random, stat = "identity") +
+  theme_minimal() +
+  labs(
+    title="Number of guesses needed for target number under random search",
+    x = "Target number",
+    y = "Number of guesses required"
+  )
+```
+```{r}
+guesses %>% group_by(targetNum) %>% 
+  summarise(numGuesses = n()/length(unique(gameId))) %>% 
+  ggplot(aes(x = factor(targetNum), y = numGuesses)) + 
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  labs(
+    title="Number of guesses for target number",
+    x = "Target number",
+    y = "Number of guesses required"
+  )
+```
+
+```{r}
+guesses %>% group_by(targetNum) %>% 
+  summarise(numGuesses = n()/length(unique(gameId))) %>% 
+  ggplot(aes(x = factor(targetNum), y = numGuesses)) + 
+  geom_bar(stat = "identity") +
+  geom_point(data = guesses.binary %>% 
+             group_by(targetNum) %>% 
+             summarise(numGuesses = n()/length(unique(gameId))),
+    stat = "identity",
+    color = color.binary) +
+  geom_point(data = guesses.random %>% 
+             group_by(targetNum) %>% 
+             summarise(numGuesses = n()/length(unique(gameId))),
+    stat = "identity",
+    color = color.random) +
+  theme_minimal() +
+  labs(
+    title="Number of guesses for target number",
+    x = "Target number",
+    y = "Number of guesses required"
+  )
+```
 
 ## 1.1 Number of guesses per game
 
@@ -101,7 +170,20 @@ By plotting the distribution of guesses per game, we can see that many games are
 
 games %>%
   ggplot(aes(x = factor(numGuesses))) + 
-  geom_bar(fill=color1) +
+  geom_bar(fill=color1, stat = "count") +
+  geom_point(data = guesses.binary %>%
+             group_by(gameId) %>%
+             summarise(numGuesses = n()/length(unique(gameId))) %>%
+             mutate(numGuesses = factor(as.numeric(numGuesses))),
+    stat = "count",
+    color = color.binary) +
+  geom_point(data = guesses.random %>%
+             group_by(gameId) %>%
+             summarise(numGuesses = n()/length(unique(gameId))) %>%
+             filter(numGuesses <= 15) %>% 
+             mutate(numGuesses = factor(as.numeric(numGuesses))),
+  stat = "count",
+  color = color.random) +
   theme_minimal() +
   labs(
     title="Distribution of number of guesses per game",
@@ -111,17 +193,8 @@ games %>%
 
 ```
 
-```{r}
 
-games %>%
-  filter(numGuesses > 7) %>%
-  nrow() / nrow(games)
-
-```
-
-Overall, around 29.2% of games required more than 7 guesses, and this is a conservative estimate for games completed sub-optimally, as most games would require fewer than 7 guesses using binary search.
-
-**TODO: Again, the simulation would help to make this point more forcefully.**
+Overall, around `r round(games %>%filter(numGuesses > 7) %>%nrow() / nrow(games)*100,2)`% of games required more than 7 guesses, and this is a conservative estimate for games completed sub-optimally, as most games would require fewer than 7 guesses using binary search.
 
 ## Mean no. guesses by user
 
@@ -171,6 +244,20 @@ guesses %>%
             .groups = "drop") %>%
   ggplot(aes(x = isOptimal, y = prop, fill=isOptimal)) + 
   geom_bar(stat = "identity") +
+  geom_point(data = guesses.random %>%
+              mutate(isOptimal = factor(ifelse(isOptimal == 1, "Optimal", "Sub-optimal"))) %>%
+              group_by(isOptimal) %>%
+              summarise(prop = n() / nrow(guesses),
+                        .groups = "drop"),
+             aes(x = isOptimal, y = prop),
+             color= color.random)+
+  geom_point(data = guesses.binary %>%
+              mutate(isOptimal = factor(ifelse(isOptimal == 1, "Optimal", "Sub-optimal"))) %>%
+              group_by(isOptimal) %>%
+              summarise(prop = n() / nrow(guesses),
+                        .groups = "drop"),
+             aes(x = isOptimal, y = prop),
+             color= color.binary)+
   scale_fill_brewer(palette = "Paired") +
   theme_minimal() +
   labs(
@@ -181,6 +268,7 @@ guesses %>%
   )
 
 ```
+
 
 ```{r}
 guesses %>%
@@ -201,6 +289,8 @@ A unimodal distribution with a mean at around 0.25, shows most users produce an 
 users %>%
   ggplot(aes(x=propOptimal)) +
   geom_density(color=color1, size=1) +
+  geom_vline(xintercept = guesses.binary %>% pull(isOptimal) %>% mean(), color=color.binary)+
+  geom_vline(xintercept = guesses.random %>% pull(isOptimal) %>% mean(), color=color.random)+
   theme_minimal() +
   labs(
     title="Proportion of guesses which were optimal by user",
@@ -218,6 +308,11 @@ guesses %>%
   mutate(isOptimal = factor(ifelse(isOptimal == 1, "Optimal", "Sub-optimal"))) %>%
   ggplot(aes(x = attemptNum, fill=isOptimal)) + 
   geom_bar(position = "fill") +
+  geom_point(data = guesses.random %>%
+               mutate(isOptimal = factor(ifelse(isOptimal == 1, "Optimal", "Sub-optimal"))) %>% 
+               summarise(mean = mean(isOptimal)),
+             aes(x=attemptNum,y=mean),
+             color = color.random)+
   scale_fill_brewer(palette = "Paired") +
   theme_minimal() +
   labs(
