@@ -1,4 +1,5 @@
 #Generate a dataframe of binary search for all 100 possible guesses
+source("analysis/get_EIG.R")
 gameID = 0
 gameIDs = c()
 guesses = c()
@@ -94,6 +95,11 @@ guesses.binary <- df.bs %>%
     # find no excluded
     numExcluded = numAvailable - lead(numAvailable, default = 1),
     propExcluded = numExcluded / numAvailable,
+    
+    # ----- Expected IG ---- #
+    EIG = get_EIG(lowerBound, upperBound, guess),
+    EIG.optimal = get_EIG(lowerBound, upperBound, optimalGuess),
+    EIG.relative = EIG / EIG.optimal,
     
     # ----- Repeat info measures for optimal guess ---- #
     

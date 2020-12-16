@@ -1,4 +1,5 @@
 #Generate a dataframe of random legal guesses
+source("analysis/get_EIG.R")
 i = 1
 gameIDs = c()
 guesses = c()
@@ -97,6 +98,11 @@ guesses.random <- df.rs %>%
     # find no excluded
     numExcluded = numAvailable - lead(numAvailable, default = 1),
     propExcluded = numExcluded / numAvailable,
+    
+    # ----- Expected IG ---- #
+    EIG = get_EIG(lowerBound, upperBound, guess),
+    EIG.optimal = get_EIG(lowerBound, upperBound, optimalGuess),
+    EIG.relative = EIG / EIG.optimal,
     
     # ----- Repeat info measures for optimal guess ---- #
     
