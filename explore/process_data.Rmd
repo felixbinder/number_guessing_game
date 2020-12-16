@@ -143,7 +143,7 @@ We create the following variables:
 
 ```{r}
 
-source("analysis/get_EIG.R")
+source("../analysis/get_EIG.R")
 
 guesses <- guesses %>%
   group_by(gameId) %>%
@@ -250,6 +250,9 @@ outofbounds_exclusions <- guesses %>%
 
 guesses<-guesses[!guesses$gameId %in% outofbounds_exclusions$gameId,]
 
+# Remove games as well
+games<-games[!games$gameId %in% outofbounds_exclusions$gameId,]
+
 ```
 
 We also remove guesses where the number of candidates available at the start of the guess is 1. From an information-theoretic point of view, no information is gained by these guesses, and the user can know for certain that the number they guess is the correct number.
@@ -290,6 +293,8 @@ games.info <- guesses %>%
   group_by(gameId) %>%
   summarise(
     infoGain.mean = mean(infoGain),
+    EIG = mean(EIG),
+    EIG.relative = mean(EIG.relative),
     propExcluded.mean = mean(propExcluded),
     numOptimal = sum(isOptimal),
     propOptimal = numOptimal / n(),
@@ -303,9 +308,15 @@ games <- merge(games, games.info)
 games <- games %>%
   group_by(user) %>%
   mutate(
-    game_index = dense_rank(startTime)
+    game_index = dense_rank(startTime),
+    no_user_games = n()
   ) %>%
   ungroup()
+
+# Merge game & user info onto guesses
+guesses <- merge(guesses,
+  games %>%
+    select(gameId, game_index, no_user_games))
 
 ```
 
@@ -386,6 +397,8 @@ users <- merge(
     group_by(user) %>%
     summarise(
       infoGain.mean = mean(infoGain),
+      EIG = mean(EIG),
+      EIG.relative = mean(EIG.relative),
       propExcluded.mean = mean(propExcluded),
       numOptimal = sum(isOptimal),
       propOptimal = numOptimal / n(),
