@@ -306,11 +306,17 @@ Another interesting question is whether many of these optimal guesses are produc
 
 guesses %>%
   mutate(isOptimal = factor(ifelse(isOptimal == 1, "Optimal", "Sub-optimal"))) %>%
-  ggplot(aes(x = attemptNum, fill=isOptimal)) + 
-  geom_bar(position = "fill") +
+  ggplot(aes(x = attemptNum)) + 
+  geom_bar(aes(fill=isOptimal),position = "fill") +
+  geom_point(data = guesses.binary %>%
+                    group_by(attemptNum) %>% 
+                    summarise(mean = mean(isOptimal)),
+             aes(x=attemptNum,y=mean),
+             color = color.binary)+
   geom_point(data = guesses.random %>%
-               mutate(isOptimal = factor(ifelse(isOptimal == 1, "Optimal", "Sub-optimal"))) %>% 
-               summarise(mean = mean(isOptimal)),
+                    group_by(attemptNum) %>% 
+                    summarise(mean = mean(isOptimal)) %>% 
+                    filter(attemptNum <= 15),
              aes(x=attemptNum,y=mean),
              color = color.random)+
   scale_fill_brewer(palette = "Paired") +
@@ -336,6 +342,16 @@ guesses %>%
                    binwidth = 1,
                    color=color2) +
   geom_smooth(method = 'lm') + 
+  stat_summary_bin(data = guesses.binary,
+                   fun.data="mean_cl_boot",
+                   geom="pointrange",
+                   binwidth = 1,
+                   color=color.binary) +
+  stat_summary_bin(data = guesses.random %>% filter(attemptNum < 15),
+                   fun.data="mean_cl_boot",
+                   geom="pointrange",
+                   binwidth = 1,
+                   color=color.random) +
   theme_minimal() +
   labs(
     title="Proportion of optimal guesses for the n-th guess beyond chance",
@@ -358,7 +374,12 @@ We could use this measure directly: proportion of candidates eliminated divided 
 guesses %>%
   ggplot(aes(x = propExcluded.norm)) + 
   geom_density(color=color1, size=1) +
+  geom_density(data = guesses.binary,
+    color=color.binary, size=1) +
+  geom_density(data = guesses.random,
+    color=color.random, size=1) +
   theme_minimal() +
+  ylim(0,4)+
   labs(
     title="Proportion of candidates eliminated by relative to optimal guess",
     x = "Relative proportion eliminated",
@@ -384,6 +405,11 @@ We can see that many guesses have an optimality of close to 1 (representing opti
 guesses %>%
   ggplot(aes(x = infoGain.norm)) + 
   geom_density(color=color1, size=1) +
+  geom_density(data = guesses.binary,
+    color=color.binary, size=1) +
+  geom_density(data = guesses.random,
+    color=color.random, size=1) +
+  ylim(0,2)+
   theme_minimal() +
   labs(
     title="How much information did guesses gain compared to binary search?",
@@ -433,6 +459,18 @@ games %>%
                    binwidth = 5,
                    color=color2) +
   geom_smooth(method = 'lm') + 
+  geom_hline(yintercept = guesses.random %>%
+                          group_by(gameId) %>% 
+                          summarise(n = n()) %>% 
+                          pull(n) %>% mean(),
+             color = color.random
+  )+
+  geom_hline(yintercept = guesses.binary %>%
+                          group_by(gameId) %>% 
+                          summarise(n = n()) %>% 
+                          pull(n) %>% mean(),
+             color = color.binary
+  )+
   theme_minimal() + 
   labs(
     title="Number of guesses for n-th game of user",
@@ -456,6 +494,14 @@ games %>%
                    binwidth = 5,
                    color=color2) +
   geom_smooth(method = 'lm') + 
+  geom_hline(yintercept = guesses.random %>%
+                          pull(isOptimal) %>% mean(),
+             color = color.random
+  )+
+  geom_hline(yintercept = guesses.binary %>%
+                          pull(isOptimal) %>% mean(),
+             color = color.binary
+  )+
   theme_minimal() + 
   ylim(0,1) +
   labs(
@@ -468,6 +514,7 @@ games %>%
 ```
 Likewise, the proportion of optimal guesses markedly increases with the total number of games.
 
+**SOMETHING WRONG W INFOGAIN HERE**
 ```{r}
 
 games %>%
@@ -477,6 +524,14 @@ games %>%
                    binwidth = 5,
                    color=color2) +
   geom_smooth(method = 'lm') + 
+  geom_hline(yintercept = guesses.random %>%
+                          pull(infoGain) %>% mean(),
+             color = color.random
+  )+
+  geom_hline(yintercept = guesses.binary %>%
+                          pull(infoGain) %>% mean(),
+             color = color.binary
+  )+
   theme_minimal() + 
   labs(
     title="Mean information gain per guess for n-th game of user",
