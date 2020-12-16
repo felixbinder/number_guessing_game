@@ -396,6 +396,10 @@ Finally, we can figure out what `n` (i.e. the number of candidates) *would* be i
 guesses %>%
   ggplot(aes(x = EIG.optimal)) + 
   geom_density(color=color1, size=1) +
+  geom_density(data = guesses.binary,
+    color=color.binary, size=1) +
+  geom_density(data = guesses.random,
+    color=color.random, size=1) +
   theme_minimal() +
   labs(
     title="Distribution of optimal EIG",
