@@ -58,6 +58,7 @@ Our primary research questions are:
 
 # Load libraries
 suppressMessages(library(tidyverse))
+library(tidyverse)
 library(RColorBrewer)
 library(knitr)
 library(lme4)
@@ -143,6 +144,7 @@ guesses %>% group_by(targetNum) %>%
              summarise(numGuesses = n()/length(unique(gameId))),
     stat = "identity",
     color = color.random) +
+  scale_x_discrete(breaks = seq(0,100,by=5))+
   theme_minimal() +
   labs(
     title="Number of guesses for target number",
