@@ -48,11 +48,6 @@ Our primary research questions are:
 2. How do players’ strategies change and/or improve over time?
   2.1 Do players' responses improve over time (as measured by the information gain of each guess)?
   2.2 Do players adopt or better approximate binary search over time or do they improve by adopting other strategies?
-
-3. What other strategies do players use and how can we characterize them?
-  * Are there other patterns in players' guesses that imply other strategies?
-  * How can we identify and categorize these strategies?
-  * Are strategies reliable and rational? Or do they expose irrational biases in players' reasoning?
   
   
 **TODO*: Ed mentioned he wanted us to look at the distribution of career lengths etc. We have these plots in the data_summary, but do you think we want to include any of that here/ in the writeup?
