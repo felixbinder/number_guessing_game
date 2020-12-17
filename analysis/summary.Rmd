@@ -1,0 +1,132 @@
+---
+title: "Summary"
+author: "Number Guessing Team"
+date: "17/12/2020"
+output:
+  html_document:
+    highlight: kate
+    theme: flatly
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# --- Setup --- #
+
+# Load libraries
+suppressMessages(library(tidyverse))
+library(tidyverse)
+library(RColorBrewer)
+library(knitr)
+library(lme4)
+
+# Load data from data processing 
+guesses <- read.csv('../data/guesses_processed.csv')
+games <- read.csv('../data/games_processed.csv')
+users <- read.csv('../data/users_processed.csv')
+
+# Load simulation data
+guesses.binary = read.csv('../data/guesses_binary_search.csv')
+guesses.random = read.csv('../data/guesses_random_search.csv')
+
+# Create color palette
+col.pal <- brewer.pal(6, "Set1")
+
+color.human = col.pal[2]
+color.binary = col.pal[3]
+color.random = col.pal[1]
+```
+
+# 1. How optimal are player strategies?
+
+In order to measure player performance, we calculate the **Expected Information Gain (EIG)** of each guess. This is a measure of how many candidates you would expect the player to eliminate with this guess. The higher the better.
+
+The plot below shows **Expected Information Gain** for the participants' data compared to two different strategies: **Random Guessing** (red) and **Binary Search** (green). 
+
+```{r}
+
+guesses %>%
+  ggplot(aes(x = EIG)) + 
+  geom_density(data = guesses.binary,
+    color=color.binary, size=1) +
+  geom_density(data = guesses.random,
+    color=color.random, size=1) +
+  geom_density(color=color.human, size=1) +
+  theme_minimal() +
+  labs(
+    title="Distribution of Expected Information Gain",
+    x = "Expected Information Gain",
+    y = "Density"
+  )
+
+
+```
+
+```{r}
+
+## Another draft of the same chart
+guesses %>%
+  ggplot(aes(x = EIG)) +
+  geom_density(size=0.5, data = guesses,
+               fill=color.human, color=color.human, alpha=0.8) +
+  geom_density(size=0.5, data = guesses.binary,
+               fill=color.binary, color=color.binary, alpha=0.05) +
+  geom_density(size=0.5, data = guesses.random,
+               fill=color.random, color=color.random, alpha=0.05) +
+
+  theme_minimal() +
+  labs(
+    title="Mean EIG across different games",
+    x = "EIG",
+    y = "Density",
+    color = "Strategy"
+  )
+
+```
+
+Human guesses show high variance in EIG, but most guesses are slightly better than would be expected by chance, and not as good as would be expected by binary search.
+
+We can compare how well participants are doing compared to binary search by dividing the EIG of each participant guess by the EIG that an optimal guess would have produced. Let's call this **Relative Expected Information Gain (REIG)** as it is EIG *relative to* the optimal EIG.
+
+**Note: this is clearly an awful name and feel free to change it**
+
+We can plot relative EIG for each strategy. REIG for Optimal strategy is always 1 by definition.
+
+```{r}
+
+guesses %>%
+  ggplot(aes(x = EIG.relative)) +
+  geom_vline(size = 1, xintercept=1, color = color.binary) +
+  geom_density(data = guesses.random,
+    color=color.random, size=0.5, fill = color.random, alpha=0.1) +
+  geom_density(size=0.5, color=color.human, fill=color.human, alpha=0.1) +
+  theme_minimal() +
+  labs(
+    title="Mean Relative EIG across different games",
+    x = "Relative EIG",
+    y = "Density"
+  )
+
+```
+
+
+```{r}
+guesses %>%
+  mutate(eig.bin = cut_interval(EIG.relative, length=0.1,
+                                labels = seq(0.1, 1, 0.1))
+         ) %>%
+  group_by(eig.bin) %>%
+  summarise(prop=n()/ nrow(guesses)) %>%
+  ggplot(aes(x = eig.bin, y = prop)) + 
+  geom_bar(stat = "identity", fill=color.human) +
+  theme_minimal() +
+  labs(
+    title="Relative EIG binned",
+    x = "EIG relative to binary search",
+    y = "Proportion of guesses"
+  )
+```

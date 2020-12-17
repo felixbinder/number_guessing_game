@@ -700,9 +700,9 @@ summary(m.EIG.gi)
 
 ```
 
-**LMEM**
+**LMEM Random Intercepts**
 
-Random intercepts & slope for ppt show an attenuated effect
+Random intercepts for ppt show an attenuated effect
 
 ```{r}
 
@@ -722,6 +722,69 @@ anova(lmm.EIG.gi, lmm.EIG.gi.null)
 ```
 
 You would expect a 1% improvement in performance for every ~35 games played.
+
+**LMEM Random Intercepts + slopes**
+
+Random intercepts & slopes for ppt show no effect
+
+```{r}
+
+guesses$user <- as.factor(guesses$user)
+
+lmm.EIG.gi.slopes <- lmer(EIG.relative ~ game_index + (game_index | user), data=guesses)
+
+summary(lmm.EIG.gi.slopes)
+
+# null model
+lmm.EIG.gi.slopes.null <- lmer(EIG.relative ~ (game_index | user), data=guesses)
+
+anova(lmm.EIG.gi.slopes, lmm.EIG.gi.slopes.null)
+
+0.01 / 2.833e-04
+
+```
+
+**Remove players with < 2 games**
+
+```{r}
+
+guesses$user <- as.factor(guesses$user)
+
+lmm.EIG.gi.multi <- lmer(EIG.relative ~ game_index + (game_index | user),
+                         data=guesses %>% filter(no_user_games > 1))
+
+summary(lmm.EIG.gi.multi)
+
+# null model
+lmm.EIG.gi.multi.null <- lmer(EIG.relative ~ (game_index | user),
+                              data=guesses %>% filter(no_user_games > 1))
+
+anova(lmm.EIG.gi.multi, lmm.EIG.gi.multi.null)
+
+0.01 / 2.833e-04
+
+```
+
+**Check with numGuesses**
+
+The effect of numGuesses is not significant
+
+```{r}
+
+lmm.no.guesses <- lmer(numGuesses ~ game_index + (1 | user),
+                         data=games %>% filter(no_user_games > 1))
+
+summary(lmm.no.guesses)
+
+# null model
+lmm.no.guesses.null <- lmer(numGuesses ~ (1 | user),
+                              data=games %>% filter(no_user_games > 1))
+
+anova(lmm.no.guesses, lmm.no.guesses.null)
+
+0.01 / 2.833e-04
+
+```
 
 ## 2.3 Do players get faster?
 
