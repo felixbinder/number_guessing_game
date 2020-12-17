@@ -1,7 +1,7 @@
 ---
 title: "Analysis"
 author: "Number Guessing Team"
-date: "07/12/2020"
+date: "017/12/2020"
 output:
   html_document:
     highlight: kate
@@ -97,6 +97,7 @@ guesses.binary %>% group_by(targetNum) %>%
   ggplot(aes(x = factor(targetNum), y = numGuesses)) + 
   geom_bar(fill=color.binary, stat = "identity") +
   theme_minimal() +
+  scale_x_discrete(breaks = seq(0,100,by=5))+
   labs(
     title="Number of guesses needed for target number under binary search",
     x = "Target number",
@@ -110,6 +111,7 @@ guesses.random %>% group_by(targetNum) %>%
   ggplot(aes(x = factor(targetNum), y = numGuesses)) + 
   geom_bar(fill=color.random, stat = "identity") +
   theme_minimal() +
+  scale_x_discrete(breaks = seq(0,100,by=5))+
   labs(
     title="Number of guesses needed for target number under random search",
     x = "Target number",
@@ -122,6 +124,7 @@ guesses %>% group_by(targetNum) %>%
   ggplot(aes(x = factor(targetNum), y = numGuesses)) + 
   geom_bar(stat = "identity") +
   theme_minimal() +
+  scale_x_discrete(breaks = seq(0,100,by=5))+
   labs(
     title="Number of guesses for target number",
     x = "Target number",
@@ -446,6 +449,7 @@ guesses %>%
   )
 
 ```
+
 We can see that many guesses have an optimality of close to 1 (representing optimal guesses) with a long tail drifting off to very poor
 
 Here they are binned.
