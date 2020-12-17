@@ -1,4 +1,25 @@
 
+library(tidyverse)
+library(RColorBrewer)
+library(knitr)
+library(lme4)
+
+# Load data from data processing 
+guesses <- read.csv('../data/guesses_processed.csv')
+games <- read.csv('../data/games_processed.csv')
+users <- read.csv('../data/users_processed.csv')
+
+# Load simulation data
+guesses.binary = read.csv('../data/guesses_binary_search.csv')
+guesses.random = read.csv('../data/guesses_random_search.csv')
+
+# Create color palette
+col.pal <- brewer.pal(6, "Set1")
+
+color.human = col.pal[2]
+color.binary = col.pal[3]
+color.random = col.pal[1]
+
 # ----- EIG by participant ---- #
 
 games.binary <- guesses.binary %>%
@@ -57,7 +78,7 @@ p.eig.user.empty <- users %>%
     text = element_text(color = "white", size=20)
   )
 
-ggsave("eig_user_empty.png", p.eig.user.empty, bg = "transparent", width = 10, height = 5)
+ggsave("img/eig_user_empty.png", p.eig.user.empty, bg = "transparent", width = 10, height = 5)
 
 
 # Random guessing
@@ -86,7 +107,7 @@ p.eig.user.random <- users %>%
     text = element_text(color = "white", size=20)
   )
 
-ggsave("eig_user_random.png", p.eig.user.random, bg = "transparent", width = 10, height = 5)
+ggsave("img/eig_user_random.png", p.eig.user.random, bg = "transparent", width = 10, height = 5)
 
 p.eig.user.binary <- users %>%
   ggplot(aes(x = EIG)) + 
@@ -112,7 +133,7 @@ p.eig.user.binary <- users %>%
     text = element_text(color = "white", size=20)
   )
 
-ggsave("eig_user_binary.png", p.eig.user.binary, bg = "transparent", width = 10, height = 5)
+ggsave("img/eig_user_binary.png", p.eig.user.binary, bg = "transparent", width = 10, height = 5)
 
 
 p.eig.user <- users %>%
@@ -139,7 +160,7 @@ p.eig.user <- users %>%
     text = element_text(color = "white", size=20)
   )
 
-ggsave("eig_user.png", p.eig.user, bg = "transparent", width = 10, height = 5)
+ggsave("img/eig_user.png", p.eig.user, bg = "transparent", width = 10, height = 5)
 
 
 # ----- REIG vs Game Index ----- #
@@ -180,7 +201,7 @@ p.reig.idx.empty <- games %>%
     text = element_text(color = "white", size=20)
   )
 
-ggsave("reig_idx_empty.png", p.reig.idx.empty, bg = "transparent", width = 10, height = 5)
+ggsave("img/reig_idx_empty.png", p.reig.idx.empty, bg = "transparent", width = 10, height = 5)
 
 
 # Overall
@@ -217,7 +238,7 @@ p.reig.idx.1 <- games %>%
     text = element_text(color = "white", size=20)
   )
 
-ggsave("reig_idx_1.png", p.reig.idx.1, bg = "transparent", width = 10, height = 5)
+ggsave("img/reig_idx_1.png", p.reig.idx.1, bg = "transparent", width = 10, height = 5)
 
 
 # Overall + Top 50
@@ -258,7 +279,7 @@ p.reig.idx.2 <- games %>%
     legend.position = "none"
   )
 
-ggsave("reig_idx_2.png", p.reig.idx.2, bg = "transparent", width = 10, height = 5)
+ggsave("img/reig_idx_2.png", p.reig.idx.2, bg = "transparent", width = 10, height = 5)
 
 
 # REIG Relative to Participant Mean
@@ -296,7 +317,7 @@ p.reig.idx.3.empty <- games %>%
     legend.position = "none"
   )
 
-ggsave("reig_idx_3_empty.png", p.reig.idx.3.empty, bg = "transparent", width = 10, height = 5)
+ggsave("img/reig_idx_3_empty.png", p.reig.idx.3.empty, bg = "transparent", width = 10, height = 5)
 
 
 games <- merge(games, 
@@ -332,5 +353,5 @@ p.reig.idx.3 <- games %>%
     legend.position = "none"
   )
 
-ggsave("reig_idx_3.png", p.reig.idx.3, bg = "transparent", width = 10, height = 5)
+ggsave("img/img/reig_idx_3.png", p.reig.idx.3, bg = "transparent", width = 10, height = 5)
 
