@@ -8,6 +8,7 @@ output:
     theme: flatly
     toc: yes
     toc_float: yes
+    number_sections : yes
 ---
 
 ```{r setup, include=FALSE}
@@ -83,7 +84,7 @@ color.random = "red"
 ```
 
 
-# 1. How optimal are player strategies?
+# How optimal are player strategies?
 
 The guessing game affords an optimal strategy: binary search. At each guess, the player ought to select a guess which will eliminate the largest proportion of numbers from the remaining candidate numbers. Because the player has no information about where in the range of candidates the target number will fall, the best strategy is to pick the number at the centre of the range. In this way, roughly half of the candidates will be removed at each guess.
 
@@ -156,7 +157,7 @@ guesses %>% group_by(targetNum) %>%
   )
 ```
 
-## 1.1 Number of guesses per game
+## Number of guesses per game
 
 Following binary search, then, at attempt `n`, we expect the number of candidates to be `100 / 2 ^ n`. Because `2 ^ 7 > 100`, we can deduce that no game would take longer than 7 guesses.
 
@@ -171,12 +172,6 @@ By plotting the distribution of guesses per game, we can see that many games are
 games %>%
   ggplot(aes(x = factor(numGuesses))) + 
   geom_bar(fill=color1, stat = "count") +
-  geom_point(data = guesses.binary %>%
-             group_by(gameId) %>%
-             summarise(numGuesses = n()/length(unique(gameId))) %>%
-             mutate(numGuesses = factor(as.numeric(numGuesses))),
-    stat = "count",
-    color = color.binary) +
   geom_point(data = guesses.random %>%
              group_by(gameId) %>%
              summarise(numGuesses = n()/length(unique(gameId))) %>%
@@ -184,6 +179,12 @@ games %>%
              mutate(numGuesses = factor(as.numeric(numGuesses))),
   stat = "count",
   color = color.random) +
+  geom_point(data = guesses.binary %>%
+             group_by(gameId) %>%
+             summarise(numGuesses = n()/length(unique(gameId))) %>%
+             mutate(numGuesses = factor(as.numeric(numGuesses))),
+    stat = "count",
+    color = color.binary) +
   theme_minimal() +
   labs(
     title="Distribution of number of guesses per game",
@@ -205,11 +206,7 @@ Overall, around `r round(games %>%filter(numGuesses > 7) %>%nrow() / nrow(games)
 
 Do all users tend to take suboptimally long to complete games? Or do some players consistently complete games in < 7 guesses?
 
-**NOTE: Here is where it might be nice to refer back to the fact that some players have completed many games and some very few**
-
 Plotting the mean number of guesses/game for each user, grouping by the number of games each user played, we can see that there is a high spread across users. Some users who played 2-4 games consistently take more than 7 guesses to complete games.
-
-**NOTE: more/better analysis needed here, although tbh we might not want to include this whole section as it is mostly setup/contextualisation to the optimality measures** We could use this section to show groupings of 5's and 10s for potential strategies (if we want to move it to question 3?)
 
 ```{r}
 
@@ -234,9 +231,9 @@ users %>%
 ```
 
 
-## 1.2. What proportion of users and guesses are optimal?
+## What proportion of users and guesses are optimal?
 
-The number of guesses metric, however, is not very discriminative. Some games will take longer than other even using binary search. We can directly check if each guess is optimal by calculating the optimal guess at each decision point and checking whether the user's guess is equal to the optimal guess. Importantly, as discussed above wrt. 50/51, there are many situations in which two guesses will eliminate equal numbers of candidates on average, and so we treat both values (50 or 51) as optimal.
+The number of guesses metric, however, is not very discriminative. Some games will take longer than other even using binary search (no game can take longer than 7 guesses, while some games only take a single guess under binary search strategy). We can directly check if each guess is optimal by calculating the optimal guess at each decision point and checking whether the user's guess is equal to the optimal guess. Importantly, as discussed above wrt. 50/51, there are many situations in which two guesses will eliminate equal numbers of candidates on average, and so we treat both values (50 or 51) as optimal.
 
 Firstly, we can plot the number of guesses that were optimal overall.
 
@@ -256,13 +253,6 @@ guesses %>%
                         .groups = "drop"),
              aes(x = isOptimal, y = prop),
              color= color.random)+
-  geom_point(data = guesses.binary %>%
-              mutate(isOptimal = factor(ifelse(isOptimal == 1, "Optimal", "Sub-optimal"))) %>%
-              group_by(isOptimal) %>%
-              summarise(prop = n() / nrow(guesses),
-                        .groups = "drop"),
-             aes(x = isOptimal, y = prop),
-             color= color.binary)+
   scale_fill_brewer(palette = "Paired") +
   theme_minimal() +
   labs(
@@ -274,28 +264,20 @@ guesses %>%
 
 ```
 
-
-```{r}
-guesses %>%
-  filter(isOptimal == 1) %>%
-  nrow() / nrow(guesses)
-```
-
-33.3% of guesses were optimal overall, which indicates that users were not using binary search two thirds of the time.
+`r round(guesses %>% filter(isOptimal == 1) %>% nrow() / nrow(guesses),2)`% of guesses were optimal overall, which indicates that users were not using binary search two thirds of the time.
 
 Again we can ask how the proportion of optimal guesses distributes across users (are most users making optimal guesses 1/3 of the time, or are 1/3 of the users making consistently optimal guesses).
 
 A unimodal distribution with a mean at around 0.25, shows most users produce an optimal guess around a quarter of the time. However, a small number of users are consistently producing optimal guesses more than 80% of the time.
 
-**TODO: Do more users guess optimally than would be expected by chance for random guessing? I feel like we don't have many stats tests in here yet!**
-
 ```{r}
 
 users %>%
-  ggplot(aes(x=EIG)) +
+  ggplot(aes(x=propOptimal)) +
   geom_density(color=color1, size=1) +
-  geom_density(data = guesses.binary, color=color2, size=1) +
+  # geom_density(data = guesses.binary, color=color2, size=1) +
   geom_vline(xintercept = guesses.random %>% pull(isOptimal) %>% mean(), color=color.random)+
+  geom_vline(xintercept = guesses.binary %>% pull(isOptimal) %>% mean(), color=color.binary)+
   theme_minimal() +
   labs(
     title="Proportion of guesses which were optimal by user",
@@ -337,7 +319,7 @@ guesses %>%
 
 Primarily, the latter effect seems to drive optimality, however, there is a higher number of optimal guesses on the first guess than the second and third, which might be due to participants learning (or intuiting) that 50 is a good first guess.
 
-## How optimal are guesses over the course of a game?
+The next plot shows how often the optimal guess was made on the n-th guess for a particular game beyond what might be expected by chance. 0 corresponds to performing at chance, negative number indicate performing below chance. This shows that, on average, the 9th guess and later are less often optimal than what might be expected by chance. This is because most games end before the 9th guess is made—therefore, players with many guesses tend to be poor players. The dropoff in the binary strategy is because of the accounting for making an optimal guess by chance.
 
 ```{r}
 guesses %>%
@@ -365,10 +347,7 @@ guesses %>%
   scale_x_continuous(breaks = 1:15) 
 ```
 
-This shows how often the optimal guess was made on the n-th guess for a particular game beyond what might be expected by chance. 0 corresponds to performing at chance, negative number indicate performing below chance. This shows that, on average, the 9th guess and later are less often optimal than what might be expected by chance. This is because most games end before the 9th guess is made—therefore, players with many guesses tend to be poor players.
-Of note is that the first guess tends to be optimal more often than others. The optimal first guess is always 50, a salient number.
-
-## 1.3. How much information is gained by guesses compared to optimal guesses?
+## How much information is gained by guesses compared to optimal guesses?
 
 We can also define the expected amount of **information** gained by each guess. In Information Theory, "the [entropy](https://en.wikipedia.org/wiki/Entropy_(information_theory) of a random variable is the average level of "information", "surprise", or "uncertainty" inherent in the variable's possible outcomes." In our case, because each candidate is as likely as the next, entropy is directly proportional to the number of candidates (the more candidates remaining, the more uncertain you are about which is correct).
 
@@ -480,9 +459,9 @@ guesses %>%
 
 
 
-# 2. How do player strategies change over time?
+# How do player strategies change over time?
 
-## 2.1. Does player performance improve?
+## Does player performance improve?
 
 ```{r}
 
@@ -793,7 +772,7 @@ anova(lmm.no.guesses, lmm.no.guesses.null)
 
 ```
 
-## 2.3 Do players get faster?
+## Do players get faster?
 
 Finally, let's look at whether players get faster over the course of their career?
 
@@ -839,37 +818,3 @@ anova(model.game_index.guesses, model.game_index.guesses.null)
 ```
 
 A linear mixed effects model (which takes into account the variance between participants), shows a stronger relationship (it predicts you will make one fewer guess every 150 games). A likelihood ratio test against a null model shows the effect to be significant.
-
-# 3. What other strategies do players use and how can we characterize them?
-
-Potential Strategies can include picking numbers that are even or odd and rounded by 10's and 5's. 
-
-(is there a function that we can easily select out even or odds? or do we just write a function of like N/2 and if its true, filter it? not really sure...)
-
-This graph shows that mean guesses tend to congregate around 5's and 10's.
-
-move mean guess graph (distributions of 5's and 10s) here perhaps?
-
-```{r}
-
-users %>%
-  mutate(no_games_bin = cut(
-        no_games,
-        breaks = c(0, 1, 5, 200),
-        labels = c("1", "2-4", "5+"),
-        )
-  ) %>%
-  ggplot(aes(x=round(guesses.mean), fill=no_games_bin)) +
-  geom_bar() +
-  theme_minimal() +
-  scale_fill_brewer(palette="Paired") +
-  labs(
-    title="Distribution of mean guesses per game across users",
-    x = "Mean guesses per game",
-    y = "Number of users",
-    fill = "Games played"
-  )
-
-```
-
-
