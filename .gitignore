@@ -44,4 +44,4 @@ vignettes/*.pdf
 *.pdf
 .DS_Store
 
-.csv
+*.csv

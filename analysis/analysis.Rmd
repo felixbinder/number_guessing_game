@@ -573,8 +573,6 @@ games %>%
 
 
 ```{r}
-
-
 games %>%
   filter(no_user_games > 2) %>%
   ggplot(aes(game_index, EIG.relative)) +

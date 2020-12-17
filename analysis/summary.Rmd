@@ -130,3 +130,160 @@ guesses %>%
     y = "Proportion of guesses"
   )
 ```
+
+
+# 2 Do users improve over time?
+
+We can then look at whether users' REIG improves the more games they play.
+
+```{r}
+games %>%
+  filter(no_user_games > 2) %>%
+  ggplot(aes(game_index, EIG.relative)) +
+  stat_summary_bin(fun.data="mean_cl_boot",
+                   geom="pointrange",
+                   binwidth = 5,
+                   color=color.human) +
+  geom_smooth(method = 'lm', formula = y~x, color=color.human) + 
+  geom_hline(yintercept = guesses.random %>%
+                          pull(EIG.relative) %>% mean(na.rm=T),
+             color = color.random
+  )+
+  geom_hline(yintercept = guesses.binary %>%
+                          pull(EIG.relative) %>% mean(na.rm=T),
+             color = color.binary
+  )+
+  theme_minimal() + 
+  labs(
+    title="Mean REIG for n-th game of user",
+    x = "No. previous games played by user",
+    y = "Mean EIG relative to binary search"
+  )
+
+```
+
+It looks at first as though performance improves a lot over time. However, this could also be due to the fact that players who play for longer happen to be good.
+
+Let's look at the trajectory of players who play over 50 games.
+
+```{r}
+games %>%
+  filter(no_user_games > 50) %>%
+  ggplot(aes(game_index, EIG.relative)) +
+  # geom_smooth(method = 'lm', formula = y~x) + 
+  geom_smooth(method = 'lm', formula = y~x,
+              mapping=aes(color=factor(user)),
+              se=F) + 
+  geom_hline(yintercept = guesses.random %>%
+                          pull(EIG.relative) %>% mean(na.rm=T),
+             color = color.random
+  )+
+  geom_hline(yintercept = guesses.binary %>%
+                          pull(EIG.relative) %>% mean(na.rm=T),
+             color = color.binary
+  )+
+  theme_minimal() + 
+  labs(
+    title="Mean REIG vs n-th game for longest playing users",
+    x = "No. previous games played by user",
+    y = "Mean EIG relative to binary search"
+  ) + 
+  theme(
+    legend.position = "none"
+  )
+  
+```
+
+These lines of best fit show that these players are not improving at all.
+
+Let's look at players relative mean EIG *relative* (again) to their own mean REIG across all games. Essentially let's ask, how did this users' performance compare to their mean performance across games.
+
+```{r}
+
+games <- merge(games, 
+               users %>% select(user, EIG.relative) %>%
+                 rename(EIG.relative.user = EIG.relative))
+
+games %>%
+  mutate(
+    EIG.relative.self = EIG.relative / EIG.relative.user
+  ) %>%
+  filter(no_user_games > 2) %>%
+  ggplot(aes(game_index, EIG.relative.self)) +
+  stat_summary_bin(fun.data="mean_cl_boot",
+                   geom="pointrange",
+                   binwidth = 5,
+                   color=color.human) +
+  geom_smooth(method = 'lm', formula = y~x, color=color.human) + 
+  theme_minimal() + 
+  labs(
+    title="REIG normalised to user mean for n-th game of user",
+    x = "No. previous games played by user",
+    y = "REIG vs career mean"
+  )
+
+```
+
+Now we can see the effect is still positive, but a lot smaller than it originally appeared, and perhaps not bigger than the standard error (shaded).
+
+## 2.2 Linear Models
+
+Let's run some models and find out.
+
+**Simple Model**
+
+A simple model with no control for user shows a **very** convincing effect of game_index on relative EIG. F(1, 198485) = 606.2, p<0.001.
+
+```{r}
+
+m.EIG.gi <- lm(EIG.relative ~ game_index, data=guesses)
+summary(m.EIG.gi)
+
+```
+
+**LMEM Random Intercepts**
+
+A Linear Mixed Effect Model with random intercepts for participants shows an attenuated effect. A likelihood ratio test against a null model with the same random effect structure but no effect of game index showed an attenuated effect X^2(1) = 8.47, p = 0.004. You would expect a 1% improvement in REIG for every ~35 games played.
+
+```{r}
+
+guesses$user <- as.factor(guesses$user)
+
+lmm.EIG.gi <- lmer(EIG.relative ~ game_index + (1 | user), data=guesses)
+
+summary(lmm.EIG.gi)
+
+# null model
+lmm.EIG.gi.null <- lmer(EIG.relative ~ (1 | user), data=guesses)
+
+anova(lmm.EIG.gi, lmm.EIG.gi.null)
+
+0.01 / 2.833e-04
+
+```
+
+**LMEM Random Intercepts + slopes**
+
+A model with random intercepts & slopes for for participants shows no effect of game_index on REIG. LRT with a null model showed that game index did not significantly predict model fit X^2(1) = 0.916, p = 0.338.
+
+```{r}
+lmm.EIG.gi.slopes <- lmer(EIG.relative ~ game_index + (game_index | user), data=guesses)
+
+summary(lmm.EIG.gi.slopes)
+
+# null model
+lmm.EIG.gi.slopes.null <- lmer(EIG.relative ~ (game_index | user), data=guesses)
+
+anova(lmm.EIG.gi.slopes, lmm.EIG.gi.slopes.null)
+```
+
+The full model with random slopes and intercepts is theoretically justified, as it is likely that different participants would not only start at a different level of ability at the game, but would also learn at different rates. Therefore, we conclude that there is not enough evidence to reject the null hypothesis that participants do not improve at TNGG over games played.
+
+## 2.3. Discussion
+
+Why not?
+
+- Different users on the same device
+- Took too long between turns
+- Maybe the strategy is hard to learn from experience? 
+
