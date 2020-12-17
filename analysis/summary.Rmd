@@ -113,8 +113,8 @@ guesses %>%
 
 ```
 
-
 ```{r}
+
 guesses %>%
   mutate(eig.bin = cut_interval(EIG.relative, length=0.1,
                                 labels = seq(0.1, 1, 0.1))
@@ -129,6 +129,59 @@ guesses %>%
     x = "EIG relative to binary search",
     y = "Proportion of guesses"
   )
+
+```
+
+```{r}
+
+random.summary <- guesses.random %>%
+  filter(is.na(EIG.relative) == F) %>%
+  mutate(eig.bin = as.factor(floor(EIG.relative * 10) / 10)
+         ) %>%
+  group_by(eig.bin) %>%
+  summarise(prop=n()/ nrow(guesses.random))%>%
+  mutate(dataset = "Random")
+
+
+human.summary <- guesses %>%
+  mutate(eig.bin = as.factor(floor(EIG.relative * 10) / 10)
+         ) %>%
+  group_by(eig.bin) %>%
+  summarise(prop=n()/ nrow(guesses)) %>%
+  mutate(dataset = "Participants")
+
+
+binary.summary <- guesses.binary %>%
+  filter(is.na(EIG.relative) == F) 
+
+binary.summary <- binary.summary %>%
+  mutate(eig.bin = as.factor(floor(EIG.relative * 10) / 10)
+         ) %>%
+  group_by(eig.bin) %>%
+  summarise(prop=n()/ nrow(binary.summary))%>%
+  mutate(dataset = "Binary Search")
+
+guesses.summary = rbind(random.summary, binary.summary, human.summary)
+
+
+guesses.summary %>%
+  mutate(
+    dataset = factor(dataset,
+                     levels = c("Random", "Participants", "Binary Search"))
+    ) %>%
+  ggplot(aes(x = eig.bin, y = prop, fill = dataset)) + 
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_minimal() +
+  scale_fill_brewer(palette="Set1") +
+  ylim(0,1) +
+  labs(
+    title="Relative EIG binned",
+    x = "EIG relative to binary search",
+    y = "Proportion of guesses"
+  )
+
+
+levels(guesses.summary$eig.bin)
 ```
 
 
