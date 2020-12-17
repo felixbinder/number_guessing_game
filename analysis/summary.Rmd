@@ -184,6 +184,72 @@ guesses.summary %>%
 levels(guesses.summary$eig.bin)
 ```
 
+## 1.2 How does EIG distribute across users?
+
+```{r}
+
+games.binary <- guesses.binary %>%
+  group_by(gameId) %>%
+  summarise(
+    EIG = mean(EIG),
+    EIG.relative = mean(EIG.relative)
+  )
+games.binary$user <- sample(games$user, nrow(games.binary), replace = T)
+users.binary <- games.binary %>%
+  group_by(user) %>%
+  summarise(
+    EIG = mean(EIG),
+    EIG.relative = mean(EIG.relative)
+  )
+
+games.random <- guesses.random %>%
+  group_by(gameId) %>%
+  summarise(
+    EIG = mean(EIG),
+    EIG.relative = mean(EIG.relative)
+  )
+games.random$user <- sample(games$user, nrow(games.random), replace = T)
+users.random <- games.random %>%
+  group_by(user) %>%
+  summarise(
+    EIG = mean(EIG),
+    EIG.relative = mean(EIG.relative)
+  )
+
+users %>%
+  ggplot(aes(x = EIG)) + 
+  geom_density(data = users.random,
+    color=color.random, fill=color.random, alpha=0.5, size=0.5) +
+  geom_density(data = users.binary,
+    color=color.binary, fill=color.binary, alpha=0.5, size=0.5) +
+  geom_density(color=color.human, fill = color.human, alpha=0.8, size=0.5) +
+  theme_minimal() +
+  labs(
+    title="Distribution of Expected Information Gain",
+    x = "Expected Information Gain",
+    y = "Density"
+  )
+
+
+```
+
+```{r}
+
+users %>%
+  ggplot(aes(x = EIG.relative)) + 
+  geom_density(data = users.random,
+    color=color.random, fill=color.random, alpha=0.5, size=0.5) +
+  geom_density(data = users.binary,
+    color=color.binary, fill=color.binary, alpha=0.5, size=0.5) +
+  geom_density(color=color.human, fill = color.human, alpha=0.8, size=0.5) +
+  theme_minimal() +
+  labs(
+    title="Distribution of Expected Information Gain",
+    x = "Expected Information Gain",
+    y = "Density"
+  )
+
+```
 
 # 2 Do users improve over time?
 

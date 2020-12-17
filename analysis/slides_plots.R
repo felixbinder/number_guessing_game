@@ -1,4 +1,57 @@
 
+# ----- EIG by participant ---- #
+
+games.binary <- guesses.binary %>%
+  group_by(gameId) %>%
+  summarise(
+    EIG = mean(EIG),
+    EIG.relative = mean(EIG.relative)
+  )
+games.binary$user <- sample(games$user, nrow(games.binary), replace = T)
+users.binary <- games.binary %>%
+  group_by(user) %>%
+  summarise(
+    EIG = mean(EIG),
+    EIG.relative = mean(EIG.relative)
+  )
+
+games.random <- guesses.random %>%
+  group_by(gameId) %>%
+  summarise(
+    EIG = mean(EIG),
+    EIG.relative = mean(EIG.relative)
+  )
+games.random$user <- sample(games$user, nrow(games.random), replace = T)
+users.random <- games.random %>%
+  group_by(user) %>%
+  summarise(
+    EIG = mean(EIG),
+    EIG.relative = mean(EIG.relative)
+  )
+
+p.eig.user <- users %>%
+  ggplot(aes(x = EIG)) + 
+  geom_density(data = users.random,
+               color=color.random, fill=color.random, alpha=0.5, size=0.5) +
+  geom_density(data = users.binary,
+               color=color.binary, fill=color.binary, alpha=0.5, size=0.5) +
+  geom_density(color=color.human, fill = color.human, alpha=0.8, size=0.5) +
+  theme_minimal() +
+  labs(
+    x = "Expected Information Gain",
+    y = "Density"
+  ) + 
+  theme(
+    panel.background = element_rect(fill = "transparent",colour = NA),
+    plot.background = element_rect(fill = "transparent",colour = NA),
+    panel.grid = element_blank(),
+    axis.text = element_text(color = "white"),
+    text = element_text(color = "white", size=20)
+  )
+
+ggsave("eig_user.png", p.eig.user, bg = "transparent", width = 10, height = 5)
+
+
 # ----- REIG vs Game Index ----- #
 
 # Overall
