@@ -190,6 +190,7 @@ levels(guesses.summary$eig.bin)
 We can then look at whether users' REIG improves the more games they play.
 
 ```{r}
+
 games %>%
   filter(no_user_games > 2) %>%
   ggplot(aes(game_index, EIG.relative)) +
@@ -200,17 +201,21 @@ games %>%
   geom_smooth(method = 'lm', formula = y~x, color=color.human) + 
   geom_hline(yintercept = guesses.random %>%
                           pull(EIG.relative) %>% mean(na.rm=T),
-             color = color.random
+             color = color.random,
+             size = 1,
+             linetype = "dashed"
   )+
   geom_hline(yintercept = guesses.binary %>%
                           pull(EIG.relative) %>% mean(na.rm=T),
-             color = color.binary
+             color = color.binary,
+             size = 1,
+             linetype = "dashed"
   )+
   theme_minimal() + 
   labs(
-    title="Mean REIG for n-th game of user",
+    title = "User performance across games",
     x = "No. previous games played by user",
-    y = "Mean EIG relative to binary search"
+    y = "Relative Expected Information Gain"
   )
 
 ```
