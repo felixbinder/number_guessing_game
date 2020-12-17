@@ -29,6 +29,61 @@ users.random <- games.random %>%
     EIG.relative = mean(EIG.relative)
   )
 
+# Random guessing
+
+p.eig.user.random <- users %>%
+  ggplot(aes(x = EIG)) + 
+  geom_density(data = users.random,
+               color=color.random, fill=color.random, alpha=0.5, size=0.5) +
+  # geom_density(data = users.binary,
+               # color=color.binary, fill=color.binary, alpha=0.5, size=0.5) +
+  # geom_density(color=color.human, fill = color.human, alpha=0.8, size=0.5) +
+  theme_minimal() +
+  labs(
+    x = "Expected Information Gain",
+    y = "Density"
+  ) + 
+  xlim(0, 1.5) +
+  ylim(0, 7) +
+  theme(
+    panel.background = element_rect(fill = "transparent",colour = NA),
+    plot.background = element_rect(fill = "transparent",colour = NA),
+    panel.grid = element_blank(),
+    axis.title.y = element_blank(),
+    axis.text.y = element_blank(),
+    axis.text = element_text(color = "white"),
+    text = element_text(color = "white", size=20)
+  )
+
+ggsave("eig_user_random.png", p.eig.user.random, bg = "transparent", width = 10, height = 5)
+
+p.eig.user.binary <- users %>%
+  ggplot(aes(x = EIG)) + 
+  geom_density(data = users.random,
+               color=color.random, fill=color.random, alpha=0.5, size=0.5) +
+  geom_density(data = users.binary,
+  color=color.binary, fill=color.binary, alpha=0.5, size=0.5) +
+  # geom_density(color=color.human, fill = color.human, alpha=0.8, size=0.5) +
+  theme_minimal() +
+  labs(
+    x = "Expected Information Gain",
+    y = "Density"
+  ) + 
+  xlim(0, 1.5) +
+  ylim(0, 7) +
+  theme(
+    panel.background = element_rect(fill = "transparent",colour = NA),
+    plot.background = element_rect(fill = "transparent",colour = NA),
+    panel.grid = element_blank(),
+    axis.title.y = element_blank(),
+    axis.text.y = element_blank(),
+    axis.text = element_text(color = "white"),
+    text = element_text(color = "white", size=20)
+  )
+
+ggsave("eig_user_binary.png", p.eig.user.binary, bg = "transparent", width = 10, height = 5)
+
+
 p.eig.user <- users %>%
   ggplot(aes(x = EIG)) + 
   geom_density(data = users.random,
@@ -41,10 +96,14 @@ p.eig.user <- users %>%
     x = "Expected Information Gain",
     y = "Density"
   ) + 
+  xlim(0, 1.5) +
+  ylim(0, 7) +
   theme(
     panel.background = element_rect(fill = "transparent",colour = NA),
     plot.background = element_rect(fill = "transparent",colour = NA),
     panel.grid = element_blank(),
+    axis.title.y = element_blank(),
+    axis.text.y = element_blank(),
     axis.text = element_text(color = "white"),
     text = element_text(color = "white", size=20)
   )
