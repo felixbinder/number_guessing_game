@@ -193,6 +193,11 @@ games %>%
 
 ```
 
+```{r}
+#Average number of guesses per game
+mean(as.numeric(games$numGuesses))
+sd(as.numeric(games$numGuesses))
+```
 
 Overall, around `r round(games %>%filter(numGuesses > 7) %>%nrow() / nrow(games)*100,2)`% of games required more than 7 guesses, and this is a conservative estimate for games completed sub-optimally, as most games would require fewer than 7 guesses using binary search.
 
