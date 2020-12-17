@@ -344,4 +344,5 @@ Why not?
 - Different users on the same device
 - Took too long between turns
 - Maybe the strategy is hard to learn from experience? 
+- It's not fun to play a game whose analytic solution you understand
 

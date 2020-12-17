@@ -8,6 +8,8 @@ output:
     theme: flatly
     toc: yes
     toc_float: yes
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
