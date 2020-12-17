@@ -282,9 +282,9 @@ A unimodal distribution with a mean at around 0.25, shows most users produce an 
 ```{r}
 
 users %>%
-  ggplot(aes(x=propOptimal)) +
+  ggplot(aes(x=EIG)) +
   geom_density(color=color1, size=1) +
-  geom_vline(xintercept = guesses.binary %>% pull(isOptimal) %>% mean(), color=color.binary)+
+  geom_density(data = guesses.binary, color=color2, size=1) +
   geom_vline(xintercept = guesses.random %>% pull(isOptimal) %>% mean(), color=color.random)+
   theme_minimal() +
   labs(
@@ -376,7 +376,6 @@ guesses %>%
   geom_density(data = guesses.random,
     color=color.random, size=1) +
   theme_minimal() +
-  ylim(0,4)+
   labs(
     title="Distribution of EIG",
     x = "Expected Information Gain",
@@ -384,6 +383,27 @@ guesses %>%
   )
 
 ```
+
+```{r}
+guesses %>%
+  ggplot(aes(x = EIG)) +
+  geom_density(size=0.5, data = guesses,
+               fill=color1, color=color1, alpha=0.8) +
+  geom_density(size=0.5, data = guesses.binary,
+               fill=color.binary, color=color.binary, alpha=0.05) +
+  geom_density(size=0.5, data = guesses.random,
+               fill=color.random, color=color.random, alpha=0.05) +
+
+  theme_minimal() +
+  labs(
+    title="Mean EIG across different games",
+    x = "EIG",
+    y = "Density",
+    color = "Strategy"
+  )
+
+```
+
 Finally, we can figure out what `n` (i.e. the number of candidates) *would* be if we had made the optimal guess at each decision point. So we can figure out what the expected entropy and optimal information gain would be.
 
 ```{r}
@@ -409,8 +429,8 @@ Therefore we can figure out what our information gain is relative to the optimal
 ```{r}
 
 guesses %>%
-  ggplot(aes(x = EIG.relative)) + 
-  geom_density(color=color1, size=1) +
+  ggplot(aes(x = EIG.relative)) +
+  geom_density(size=1, color=color1) +
   geom_density(data = guesses.binary,
     color=color.binary, size=1) +
   geom_density(data = guesses.random,
@@ -418,8 +438,8 @@ guesses %>%
   ylim(0,2)+
   theme_minimal() +
   labs(
-    title="Distribution of optimal EIG",
-    x = "EIG of binary search",
+    title="Mean Relative EIG across different games",
+    x = "Relative EIG",
     y = "Density"
   )
 
@@ -451,7 +471,7 @@ guesses %>%
 
 # 2. How do player strategies change over time?
 
-## Does player performance improve?
+## 2.1. Does player performance improve?
 
 ```{r}
 
@@ -515,37 +535,193 @@ games %>%
   
 
 ```
+
 Likewise, the proportion of optimal guesses markedly increases with the total number of games.
 
-**SOMETHING WRONG W INFOGAIN HERE**
 ```{r}
 
 games %>%
-  ggplot(aes(game_index, infoGain.mean)) +
+  ggplot(aes(game_index, EIG)) +
   stat_summary_bin(fun.data="mean_cl_boot",
                    geom="pointrange",
                    binwidth = 5,
                    color=color2) +
   geom_smooth(method = 'lm') + 
   geom_hline(yintercept = guesses.random %>%
-                          pull(infoGain) %>% mean(),
+                          pull(EIG) %>% mean(),
              color = color.random
   )+
   geom_hline(yintercept = guesses.binary %>%
-                          pull(infoGain) %>% mean(),
+                          pull(EIG) %>% mean(),
              color = color.binary
   )+
   theme_minimal() + 
   labs(
-    title="Mean information gain per guess for n-th game of user",
+    title="Mean EIG  per guess for n-th game of user",
     x = "No. previous games played by user",
     y = "Mean information gain"
   )
   
 
 ```
-The same cannot be said for the mean information gain, however. How come?
-<!-- I think somethings wrong with the information gain measure -->
+
+
+```{r}
+
+
+games %>%
+  filter(no_user_games > 2) %>%
+  ggplot(aes(game_index, EIG.relative)) +
+  stat_summary_bin(fun.data="mean_cl_boot",
+                   geom="pointrange",
+                   binwidth = 5,
+                   color=color1) +
+  geom_smooth(method = 'lm', formula = y~x, color=color1) + 
+  geom_hline(yintercept = guesses.random %>%
+                          pull(EIG.relative) %>% mean(na.rm=T),
+             color = color.random
+  )+
+  geom_hline(yintercept = guesses.binary %>%
+                          pull(EIG.relative) %>% mean(na.rm=T),
+             color = color.binary
+  )+
+  theme_minimal() + 
+  labs(
+    title="Mean relative EIG for n-th game of user",
+    x = "No. previous games played by user",
+    y = "Mean EIG relative to"
+  )
+
+```
+
+```{r}
+
+games %>%
+  filter(no_user_games > 2) %>%
+  mutate(
+    no_user_games_bin = cut(
+      no_user_games, breaks = c(1, 5, 10, 25, 50, 150),
+      labels = c("1-5", "6-10", "11-25", "25-50", "50+"))
+  ) %>%
+  ggplot(aes(game_index, EIG.relative)) +
+  stat_summary_bin(fun.data="mean_cl_boot",
+                   geom="pointrange",
+                   binwidth = 5,
+                   mapping = aes(color=no_user_games_bin)) +
+  # geom_smooth(method = 'lm', formula = y~x) + 
+  geom_smooth(method = 'lm', formula = y~x,
+              mapping=aes(color=no_user_games_bin)) + 
+  geom_hline(yintercept = guesses.random %>%
+                          pull(EIG.relative) %>% mean(na.rm=T),
+             color = color.random
+  )+
+  geom_hline(yintercept = guesses.binary %>%
+                          pull(EIG.relative) %>% mean(na.rm=T),
+             color = color.binary
+  )+
+  theme_minimal() + 
+  labs(
+    title="Mean relative EIG for n-th game of user",
+    x = "No. previous games played by user",
+    y = "Mean EIG relative to"
+  )
+  
+
+```
+
+If we zoom in on the top 10 users we can see that their trajectories are not positive.
+
+```{r}
+games %>%
+  filter(no_user_games > 50) %>%
+  ggplot(aes(game_index, EIG.relative)) +
+  # geom_smooth(method = 'lm', formula = y~x) + 
+  geom_smooth(method = 'lm', formula = y~x,
+              mapping=aes(color=factor(user)),
+              se=F) + 
+  geom_hline(yintercept = guesses.random %>%
+                          pull(EIG.relative) %>% mean(na.rm=T),
+             color = color.random
+  )+
+  geom_hline(yintercept = guesses.binary %>%
+                          pull(EIG.relative) %>% mean(na.rm=T),
+             color = color.binary
+  )+
+  theme_minimal() + 
+  labs(
+    title="Mean relative EIG for n-th game of user",
+    x = "No. previous games played by user",
+    y = "Mean EIG relative to"
+  )
+## Linear Models
+
+```
+
+Let's look at players relative mean EIG *relative* (again) to their own mean REIG across all games. Essentially let's ask, how did this users' performance compare to their mean performance across games.
+
+```{r}
+
+games <- merge(games, 
+               users %>% select(user, EIG.relative) %>%
+                 rename(EIG.relative.user = EIG.relative))
+
+games %>%
+  mutate(
+    EIG.relative.self = EIG.relative / EIG.relative.user
+  ) %>%
+  filter(no_user_games > 2) %>%
+  ggplot(aes(game_index, EIG.relative.self)) +
+  stat_summary_bin(fun.data="mean_cl_boot",
+                   geom="pointrange",
+                   binwidth = 5,
+                   color=color1) +
+  geom_smooth(method = 'lm', formula = y~x, color=color1) + 
+  theme_minimal() + 
+  labs(
+    title="REIG normalised to user mean for n-th game of user",
+    x = "No. previous games played by user",
+    y = "REIG vs career mean"
+  )
+
+```
+
+Using this scale, we can see the effect is greatly attenuated: i.e. users are not improving much over the course of the game, the effect is caused by good players playing for longer and poor players stopping quickly.
+
+**Simple Model**
+
+A simple model with no control for user shows a **very** convincing effect of game_index on relative EIG.
+
+```{r}
+
+m.EIG.gi <- lm(EIG.relative ~ game_index, data=guesses)
+summary(m.EIG.gi)
+
+```
+
+**LMEM**
+
+Random intercepts & slope for ppt show an attenuated effect
+
+```{r}
+
+guesses$user <- as.factor(guesses$user)
+
+lmm.EIG.gi <- lmer(EIG.relative ~ game_index + (1 | user), data=guesses)
+
+summary(lmm.EIG.gi)
+
+# null model
+lmm.EIG.gi.null <- lmer(EIG.relative ~ (1 | user), data=guesses)
+
+anova(lmm.EIG.gi, lmm.EIG.gi.null)
+
+0.01 / 2.833e-04
+
+```
+
+You would expect a 1% improvement in performance for every ~35 games played.
+
+## 2.3 Do players get faster?
 
 Finally, let's look at whether players get faster over the course of their career?
 
