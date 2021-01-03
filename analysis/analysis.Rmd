@@ -50,9 +50,6 @@ Our primary research questions are:
   2.1 Do players' responses improve over time (as measured by the information gain of each guess)?
   2.2 Do players adopt or better approximate binary search over time or do they improve by adopting other strategies?
   
-  
-**TODO*: Ed mentioned he wanted us to look at the distribution of career lengths etc. We have these plots in the data_summary, but do you think we want to include any of that here/ in the writeup?
-
 
 ```{r}
 # --- Setup --- #
@@ -160,9 +157,6 @@ guesses %>% group_by(targetNum) %>%
 ## Number of guesses per game
 
 Following binary search, then, at attempt `n`, we expect the number of candidates to be `100 / 2 ^ n`. Because `2 ^ 7 > 100`, we can deduce that no game would take longer than 7 guesses.
-
-**Todo? Confirm with simulation. They do this on the [kaggle notebook](https://www.kaggle.com/sdobson46/interesting-observations) in Python which we could adapt. Could do a nice plot of the distribution of no. of guesses it takes for each number with optimal search. Might also be nice to have an implementation written here.**
-
 
 By plotting the distribution of guesses per game, we can see that many games are completed suboptimally.
 

@@ -106,7 +106,7 @@ guesses %>%
   geom_density(size=0.5, color=color.human, fill=color.human, alpha=0.1) +
   theme_minimal() +
   labs(
-    title="Mean Relative EIG across different games",
+    title="Distribution of Relative EIG",
     x = "Relative EIG",
     y = "Density"
   )
