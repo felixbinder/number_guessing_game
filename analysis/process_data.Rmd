@@ -25,7 +25,7 @@ library(RColorBrewer)
 library(knitr)
 
 # Load data
-games <- read.csv("../data/games.csv")
+games <- read.csv("data/games.csv")
 
 # Cast startTime and endTime to POSIX
 games <- games %>%

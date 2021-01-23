@@ -98,17 +98,31 @@ We can plot relative EIG for each strategy. REIG for Optimal strategy is always 
 
 ```{r}
 
-guesses %>%
-  ggplot(aes(x = EIG.relative)) +
+guesses$dataset = "Users"
+guesses.binary$dataset = "Binary Search"
+guesses.random$dataset = "Random"
+
+all.guesses <-rbind(guesses.binary, guesses.random, guesses %>% select(-X, -user, -game_index, -no_user_games))
+
+all.guesses %>%
+  mutate(
+    dataset = factor(dataset,
+                     levels = c("Random", "Participants", "Users"))
+    ) %>%
+  filter(dataset != "Binary Search") %>%
+  ggplot(aes(x = EIG.relative, color = dataset, fill=dataset)) +
   geom_vline(size = 1, xintercept=1, color = color.binary) +
-  geom_density(data = guesses.random,
-    color=color.random, size=0.5, fill = color.random, alpha=0.1) +
-  geom_density(size=0.5, color=color.human, fill=color.human, alpha=0.1) +
+  # geom_density(data = guesses.random,
+    # color=color.random, size=0.5, fill = color.random, alpha=0.1) +
+  geom_density(size=0.5, alpha=0.1) +
+  scale_fill_brewer(palette="Set1") +
   theme_minimal() +
   labs(
     title="Distribution of Relative EIG",
     x = "Relative EIG",
-    y = "Density"
+    y = "Density",
+    fill="Dataset",
+    color="Dataset"
   )
 
 ```
@@ -216,18 +230,33 @@ users.random <- games.random %>%
     EIG.relative = mean(EIG.relative)
   )
 
-users %>%
-  ggplot(aes(x = EIG)) + 
-  geom_density(data = users.random,
-    color=color.random, fill=color.random, alpha=0.5, size=0.5) +
-  geom_density(data = users.binary,
-    color=color.binary, fill=color.binary, alpha=0.5, size=0.5) +
-  geom_density(color=color.human, fill = color.human, alpha=0.8, size=0.5) +
+
+users$dataset = "Users"
+users.binary$dataset = "Binary Search"
+users.random$dataset = "Random"
+
+all.users <-rbind(users.binary, users.random, users %>% select(user, EIG, EIG.relative, dataset))
+
+all.users %>%
+  mutate(
+    dataset = factor(dataset,
+                     levels = c("Random", "Users", "Binary Search"))
+    ) %>%
+  ggplot(aes(x = EIG, color=dataset, fill=dataset)) + 
+  # geom_density(data = users.random,
+  #   color=color.random, fill=color.random, alpha=0.5, size=0.5) +
+  # geom_density(data = users.binary,
+  #   color=color.binary, fill=color.binary, alpha=0.5, size=0.5) +
+  geom_density(alpha=0.5, size=0.5) +
   theme_minimal() +
+  scale_fill_brewer(palette="Set1") +
+  scale_color_brewer(palette="Set1") +
   labs(
     title="Distribution of Expected Information Gain",
     x = "Expected Information Gain",
-    y = "Density"
+    y = "Density",
+    color="Dataset",
+    fill="Dataset"
   )
 
 

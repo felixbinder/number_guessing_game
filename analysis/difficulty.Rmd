@@ -1,0 +1,164 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+```{r}
+
+# Load libraries
+suppressMessages(library(tidyverse))
+library(tidyverse)
+library(RColorBrewer)
+library(knitr)
+library(lme4)
+
+# Load data from data processing 
+guesses <- read.csv('../data/guesses_processed.csv')
+games <- read.csv('../data/games_processed.csv')
+users <- read.csv('../data/users_processed.csv')
+
+# Create color palette
+paired <- brewer.pal(6, "Paired")
+color1 <- paired[1]
+color2 <- paired[2]
+color3 <- paired[3]
+
+color.binary = "green"
+color.random = "red"
+```
+
+# REIG by Guess Index
+
+Relative EIG starts relatively high, seems to rise until ~ guess 5, then drops down at higher guess counts.
+
+I think the drop toward the end could be due to "good" guessers finishing early and not reaching that stage of their game.
+
+```{r}
+
+guesses %>%
+  ggplot(aes(attemptNum, EIG.relative)) + 
+  stat_summary(fun = "mean", geom = "point")
+
+```
+
+```{r}
+
+# Add reversed index
+guesses <- merge(
+  guesses, games %>% select(gameId, numGuesses), by="gameId"
+) %>%
+  mutate(
+    attemptNumReversed = numGuesses - (attemptNum - 1),
+  )
+
+```
+
+We can test this in a way by introducing a "reversed" index. Here we can see that "late" guesses (closer to final guess) are generally better than "early" guesses. This implies both that a) late guesses are better for everyone and b) very bad players (who take up to 12 guesses) unsurprisingly have a lower REIG on their early guesses.
+
+The late guess effect could be due to the index being smaller, which we test below.
+
+```{r}
+guesses %>%
+  ggplot(aes(attemptNumReversed, EIG.relative)) + 
+  stat_summary(fun = "mean", geom = "point")
+
+```
+# Effect of interval size
+
+REIG tends to lower as interval size increases. With a few expected exceptions at 25, 50, 100. In general this fits with the hypothesis that it's harder to do the optimal calculation for high intervals.
+
+There could be another interesting confound here where bad guessers will make multiple guesses where numAvailable > 50 and good guessers will not. The models will deal with this by setting random intercepts for participants, but maybe there's a nice way we can deal with it in the visualisations?
+
+```{r}
+
+logit <- function(p) {log(p / (1-p))}
+
+guesses %>%
+  ggplot(aes(numAvailable, EIG.relative)) + 
+  stat_summary(fun = "mean", geom = "point") + 
+  geom_smooth(method = "lm", formula = "y ~ x", se = F)
+
+```
+
+# Effect of "difficult" intervals
+
+Here are the "easiest" intervals (highest REIG). Although maybe we should be using proportion of optimal guesses here? It depends what we're trying to say about what successfully deploying the strategy looks like.
+
+```{r}
+
+# Example guesses
+
+# guesses %>%
+  # filter(guess == 50)
+  # filter(gameId == "0005a359-0253-4b71-a7b4-3ab47f2ef54d")
+
+guesses %>%
+  group_by(numAvailable) %>%
+  summarise(EIG.relative = mean(EIG.relative)) %>%
+  arrange(desc(EIG.relative)) %>%
+  filter(dense_rank(EIG.relative) > 89) %>%
+  ggplot(aes(reorder(factor(numAvailable), -EIG.relative), EIG.relative)) + 
+    geom_bar(stat="identity", fill=color1) + 
+  theme_minimal()
+
+
+```
+
+Because of the way the splits work, it looks like the easiest numbers are either *on*
+a 5 or a 10 (e.g. bounds like [1,100] or [5,10]), or 1 below a 5 or a 10 (e.g. [1,10], [6,10]).
+
+We can create a variable that tracks this.
+
+```{r}
+
+guesses <- guesses %>%
+  mutate(
+    intervalType = case_when(
+      numAvailable %% 10 == 0 ~ "x0",
+      numAvailable %% 5 == 0 ~ "x5",
+      (numAvailable + 1) %% 10 == 0 ~ "x9",
+      (numAvailable + 1) %% 5 == 0 ~ "x4",
+      numAvailable == 2 ~ "2",
+      TRUE ~ "Other"
+    )
+  )
+
+
+guesses %>%
+  ggplot(aes(intervalType, EIG.relative, fill=intervalType)) + 
+  stat_summary(fun = "mean", geom = "bar") + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "errorbar") + 
+  theme_minimal() + 
+  scale_fill_brewer(palette="Set2")
+```
+
+I'm surprised that Other is not lower here. Let's have a look at them against the interval size.
+
+```{r}
+
+guesses %>%
+  ggplot(aes(numAvailable, EIG.relative, color=intervalType)) + 
+  stat_summary(fun = "mean", geom = "point", mapping=aes(color=intervalType)) + 
+  # geom_smooth(method = "lm", formula = "y ~ x", se = F) + 
+  scale_color_brewer(palette="Set2") +
+  theme_minimal()
+
+```
+
+With best fit lines.
+
+Interesting that all have a downward slope other than x0 intervals which are unaffected.
+
+```{r}
+
+guesses %>%
+  ggplot(aes(numAvailable, EIG.relative, color=intervalType)) + 
+  stat_summary(fun = "mean", geom = "point", mapping=aes(color=intervalType)) + 
+  geom_smooth(method = "lm", formula = "y ~ x", se = F) +
+  scale_color_brewer(palette="Set2") +
+  theme_minimal()
+
+```
