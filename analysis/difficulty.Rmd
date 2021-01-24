@@ -162,3 +162,56 @@ guesses %>%
   theme_minimal()
 
 ```
+
+# Effect of difficult start to intervals
+> Might be worth to also run the divisibility analysis not only on the size of the interval, but also on the start (or end) of the interval. Like, the midpoint of [20,28] is obvious, the midpoint of [23,31] is not (to me at least). I’d expect that intervals of any size where the lower bound is divisible by 10 lead to higher rEIG.
+
+Let's look at how mod10 of the start interval affect rEIG on the subsequent guess. 0 here means either 10, 20,..., 7 means 17,47,...
+
+```{r}
+guesses %>% mutate(mod10 = lowerBound %% 10) %>% ggplot(aes(mod10, EIG.relative)) +
+  stat_summary(fun = "mean", geom = "bar") + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "errorbar") +
+  stat_summary(aes(label=round(..x..,2)), fun.y=mean, geom="text", size=6,
+             vjust = -0.5)+
+  theme_minimal()
+
+```
+Doesn't look like much of an effect. Interestingly, _0 is lower than others, even though calculating the midpoint of the interval shold be easiest here. Perhaps this is because we only land on _0 if the prior guess was really good already? Most of these might are likely going to be 50.
+
+Let's try to aggregate like above, only for interval start instead of size. Note that eg. 10 only counts as x10, not as even! 
+
+```{r}
+
+guesses %>%
+  mutate(
+    lowerBoundType = case_when(
+      lowerBound %% 10 == 0 ~ "x0",
+      lowerBound %% 5 == 0 ~ "x5",
+      (lowerBound + 1) %% 10 == 0 ~ "x9",
+      (lowerBound + 1) %% 5 == 0 ~ "x4",
+      lowerBound == 2 ~ "2",
+      lowerBound %% 2 == 0 ~ "even",
+      TRUE ~ "Other"
+    )
+  ) %>% 
+  ggplot(aes(lowerBoundType, EIG.relative, fill=lowerBoundType)) + 
+  stat_summary(fun = "mean", geom = "bar") + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "errorbar") + 
+  theme_minimal() + 
+  scale_fill_brewer(palette="Set2")
+```
+Again, we see that people do poorly on the _0s.
+
+
+This shows us how much information we get relative to using the optimal strategy. Let's look at the percentage of guesses **exactly following the optimal strategy**.
+```{r}
+guesses %>% mutate(mod10 = lowerBound %% 10) %>% ggplot(aes(mod10, prob.optimal)) +
+  stat_summary(fun = "mean", geom = "bar") + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "errorbar") + 
+  stat_summary(aes(label=round(..x..,2)), fun.y=mean, geom="text", size=6,
+             vjust = -0.5)+
+  theme_minimal()
+
+```
+Interesting, wonder why _1 does so poorly.
