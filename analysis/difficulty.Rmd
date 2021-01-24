@@ -179,6 +179,18 @@ guesses %>% mutate(mod10 = lowerBound %% 10) %>% ggplot(aes(mod10, EIG.relative)
 ```
 Doesn't look like much of an effect. Interestingly, _0 is lower than others, even though calculating the midpoint of the interval shold be easiest here. Perhaps this is because we only land on _0 if the prior guess was really good already? Most of these might are likely going to be 50.
 
+Let's try filtering out the first two guesses to see if guessing 50 on first guess was driving the poor showing of _0. 
+```{r}
+guesses %>% filter(attemptNum > 2) %>% mutate(mod10 = lowerBound %% 10) %>% ggplot(aes(mod10, EIG.relative)) +
+  stat_summary(fun = "mean", geom = "bar") + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "errorbar") +
+  stat_summary(aes(label=round(..x..,2)), fun.y=mean, geom="text", size=6,
+             vjust = -0.5)+
+  theme_minimal()
+
+```
+Doesn't look like the poor showing for _0 is because of 50 as first guess. 
+
 Let's try to aggregate like above, only for interval start instead of size. Note that eg. 10 only counts as x10, not as even! 
 
 ```{r}
