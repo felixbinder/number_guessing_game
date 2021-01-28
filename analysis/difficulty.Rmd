@@ -287,7 +287,7 @@ guesses %>%
 
 ```
 
-# Effect of "difficult" intervals
+## Effect of "difficult" intervals
 
 Here are the "easiest" intervals (highest REIG). Although maybe we should be using proportion of optimal guesses here? It depends what we're trying to say about what successfully deploying the strategy looks like.
 
