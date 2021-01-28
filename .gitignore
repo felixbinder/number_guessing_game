@@ -46,6 +46,10 @@ vignettes/*.pdf
 
 *.csv
 
+# Cameron's additions
+scratch.R
+*.icloud
+
 #--------------------LaTeX
 ## Core latex/pdflatex auxiliary files:
 *.aux

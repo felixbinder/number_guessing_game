@@ -30,42 +30,52 @@ color.binary = "green"
 color.random = "red"
 ```
 
-# REIG by Guess Index
+# Summary
 
-Relative EIG starts relatively high, seems to rise until ~ guess 5, then drops down at higher guess counts.
+I've tried to identify a few measures of processing cost by breaking down the binary search algorithm into three arithmetical operations and thinking about what will make each operation harder to do.
 
-I think the drop toward the end could be due to "good" guessers finishing early and not reaching that stage of their game.
+I've then visualised REIG for a few of these measures and run models to check if they impact REIG.
 
-```{r}
+Other things to think about:
 
-guesses %>%
-  ggplot(aes(attemptNum, EIG.relative)) + 
-  stat_summary(fun = "mean", geom = "point")
+- **Adjusting for boundary-setting:**
+  - I suspect some users will not update their boundaries correctly (i.e. they guess "50", recieve "lower" and update their upper bound to "50" rather than "51".)
+  - Some of our measures are sensitive to the exact value of the boundaries (is it divisible by 10), so maybe we should check whether some of them perform better if we account for this 'lazy boundary adjustment'
+  
+- **Normalized REIG:**
+  - Last time some of the plots were misleading because plotting REIG conflates information about variance *within* and *between* users. We could try plotting *normalized REIG* (relative the the participant's mean REIG) to isolate just *within* user variance
+  - Maybe we can call it REIGN (Relative Expected Information Gain, Normalized) because it's a cool acronym and we didn't even force it.
 
-```
 
-```{r}
+# Proposed processing cost measures
 
-# Add reversed index
-guesses <- merge(
-  guesses, games %>% select(gameId, numGuesses), by="gameId"
-) %>%
-  mutate(
-    attemptNumReversed = numGuesses - (attemptNum - 1),
-  )
+We can characterize the optimal search strategy as an algorithm which attempts to find *M*, the mid-point between the upper bound (*U*) and the lower bound (*L*). This can be broken down into three arithmetical operations:
 
-```
+1. *I = U - L*
+2. *J = I / 2*
+3. *M = L + I*
 
-We can test this in a way by introducing a "reversed" index. Here we can see that "late" guesses (closer to final guess) are generally better than "early" guesses. This implies both that a) late guesses are better for everyone and b) very bad players (who take up to 12 guesses) unsurprisingly have a lower REIG on their early guesses.
+where *I* is the interval between *U* and *L*. [Other strategies are obviously possible but this is the one that seems intuitive to me...]
 
-The late guess effect could be due to the index being smaller, which we test below.
+We can then characterize the difficulty of the operation in terms of the difficulty of applying each arithemetical operation at each step. For instance, where *L* is divisible by 10, the user does not have to make a subtraction in the *ones*-place, so we might expect step (1) to be simpler.
 
-```{r}
-guesses %>%
-  ggplot(aes(attemptNumReversed, EIG.relative)) + 
-  stat_summary(fun = "mean", geom = "point")
+[At this point we could actually break down all of the steps that are involved in each subtraction, division and addition and how they vary depending on values of *U* and *L*]
 
-```
+## Proposed measures
+
+[These measures all assume that people can pull single digit operations from memory, but break multi-digit operations down into single digit operations (as one might on paper). E.g. 27 - 18 -> (17 - 8) + (10 - 10) = 9]
+
+1. Subtraction operation
+  A. As the size of *I* increases, processing cost increases (Ashcraft & Battaglia, 1978)
+  B. If `L %% 10 == 0`, processing cost will **decrease** because no subtraction in the *ones*-place is necessary (`x - 0 = x`).
+  C. If `L < 10`, processing cost will **decrease** because no subtraction in the *tens*-place is necessary (`x - 0 = x`)
+  D. If `(H %% 10) < (L %% 10)`, processing cost will **increase** because a 1 will have to be "borrowed" from the *tens*-place.
+  E. If `(H %/% 10) == (L %/% 10)` processing cost will **decrease** because only a simple subtraction is necessary in the tens place (`x - x = 0`). [Note: `%/%` is division without remainder (so basically if they're the same in the tens-place].
+ 
+ 
+... and so on. Would anyone have time to add to these and continue the process for steps 2 & 3? Ideally they should all be linked to references in the literature. There are some promising leads in the document Crystal has started: 
+
+
 # Effect of interval size
 
 REIG tends to lower as interval size increases. With a few expected exceptions at 25, 50, 100. In general this fits with the hypothesis that it's harder to do the optimal calculation for high intervals.
@@ -80,6 +90,26 @@ guesses %>%
   ggplot(aes(numAvailable, EIG.relative)) + 
   stat_summary(fun = "mean", geom = "point") + 
   geom_smooth(method = "lm", formula = "y ~ x", se = F)
+
+```
+
+A likelihood ratio test comparing linear mixed effects models with random intercepts by user showed a strong negative effect of interval size (p < 0.001) -- good news!
+
+[Note1: models with random *slopes* for numAvailable failed to converge. If we think random slopes are theoretically motivated we can try to get them to converge with another model solving package.
+
+Note2: I haven't used the lmerTest package Ed recommended in lecture because I'm in a rush, but I will go back and do that later and it shouldn't alter our results.]
+
+```{r}
+
+m.1A.null = lmer(EIG.relative ~ (1 | user), data=guesses, REML = F)
+
+summary(m.null.1A)
+
+m.1A = lmer(EIG.relative ~ numAvailable + (1 | user), data=guesses, REML = F)
+
+summary(m.1A)
+
+anova(m.1A, m.1A.null)
 
 ```
 
@@ -160,5 +190,46 @@ guesses %>%
   geom_smooth(method = "lm", formula = "y ~ x", se = F) +
   scale_color_brewer(palette="Set2") +
   theme_minimal()
+
+```
+
+# Appendix
+
+[I've added the guess index stuff to an appendix because I don't think it's as theoretically motivated as our other measures.]
+
+## REIG by Guess Index
+
+Relative EIG starts relatively high, seems to rise until ~ guess 5, then drops down at higher guess counts.
+
+I think the drop toward the end could be due to "good" guessers finishing early and not reaching that stage of their game.
+
+```{r}
+
+guesses %>%
+  ggplot(aes(attemptNum, EIG.relative)) + 
+  stat_summary(fun = "mean", geom = "point")
+
+```
+
+```{r}
+
+# Add reversed index
+guesses <- merge(
+  guesses, games %>% select(gameId, numGuesses), by="gameId"
+) %>%
+  mutate(
+    attemptNumReversed = numGuesses - (attemptNum - 1),
+  )
+
+```
+
+We can test this in a way by introducing a "reversed" index. Here we can see that "late" guesses (closer to final guess) are generally better than "early" guesses. This implies both that a) late guesses are better for everyone and b) very bad players (who take up to 12 guesses) unsurprisingly have a lower REIG on their early guesses.
+
+The late guess effect could be due to the index being smaller, which we test below.
+
+```{r}
+guesses %>%
+  ggplot(aes(attemptNumReversed, EIG.relative)) + 
+  stat_summary(fun = "mean", geom = "point")
 
 ```
