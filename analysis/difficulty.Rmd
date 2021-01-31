@@ -2,88 +2,87 @@
 title: "R Notebook"
 output:
   html_document:
+    highlight: kate
+    theme: flatly
+    toc: yes
+    toc_float: yes
     df_print: paged
 ---
 
-
-```{r}
-
-# Load libraries
-suppressMessages(library(tidyverse))
-library(tidyverse)
-library(RColorBrewer)
-library(knitr)
-library(lmerTest)
-
-# Load data from data processing 
-guesses <- read.csv('../data/guesses_processed.csv')
-games <- read.csv('../data/games_processed.csv')
-
-# Create color palette
-paired <- brewer.pal(6, "Paired")
-color1 <- paired[1]
-color2 <- paired[2]
-color3 <- paired[3]
-
-color.binary = "green"
-color.random = "red"
-```
-
 # Summary
 
-I've tried to identify a few measures of processing cost by breaking down the binary search algorithm into three arithmetical operations and thinking about what will make each operation harder to do.
+**TL;DR**: People are worse at finding the midpoint between two numbers when i) those numbers are large, ii) those numbers are far apart, iii) they have to "borrow" during substitution, iv) they have to "carry" during addition; v) the difference between the numbers is not divisible by 20.
 
-I've then visualised REIG for a few of these measures and run models to check if they impact REIG.
+## Assumptions
 
-Other things to think about:
+- People try to use binary search (find the midpoint) to play the number guessing game.
+- People find the midpoint, `M` between a lower bound `L` and upper bound `U` using three arithmetic operations: subtraction (`I = U-L`); division (`J = I / 2`); and addition (`M = L + J`).
+- People start by assuming their lower bound is `0` and their upper bound is `100`. When they receive feedback on a guess, they update their bounds "lazily" (i.e. if they guess `20` and Alexa says *higher*, they update their lower bound to `20`, even though they have enough information to update it to `21`).
+- People can do single digit arithmetic in their head without breaking the problem down into steps. They do more complex problems by breaking them down into simpler problems.
+- When a problem is harder to do, people perform worse on it (either because they make a mistake, or because they don't allocate the necessary cognitive resources to solving the problem).
 
-- **Adjusting for boundary-setting:**
-  - I suspect some users will not update their boundaries correctly (i.e. they guess "50", recieve "lower" and update their upper bound to "50" rather than "51".)
-  - Some of our measures are sensitive to the exact value of the boundaries (is it divisible by 10), so maybe we should check whether some of them perform better if we account for this 'lazy boundary adjustment'
+## Hypotheses
+
+We identified three categories of sources of processing difficulty, and hypothesize that each contributes to processing difficulty.
+
+1. Problem size (larger numbers are harder to process).
+2. Carrying & Borrowing (carrying and borrowing numbers creates difficulty via working memory load)
+3. No. Single Digit operations (more operations increase difficulty)
+
+## Method
+
+We constructed measures of processing difficulty for each of the arithmetical steps assumed to comprise the binary search algorithm. For each guess which was made by a user, we estimated the processing difficulty on each of these measures based on the upper and lower bounds available to the user when the guess was made. We measured how successful the Expected Information Gain (EIG) of the user's guess relative to the EIG of the optimal guess. We call this measure Relative Expected Information Gain (REIG). We constructed linear mixed effects models to predict REIG using our measures of arithmetical difficulty.
+
+## Results
+
+We found support for hypotheses 1 & 2, but limited support for hypothesis 3. Problem size (as estimated by the size of the lower bound, and the interval between the lower and upper bounds) both caused a decrease in REIG. Interval size was the strongest predictor we tested.
+
+Carrying during addition or borrowing during subtraction both caused decreases in REIG. In contrast, carrying during division (due to the dividend being odd in the tens- or ones-place) did not cause a decrease in EIG, and instead correlated with a small increase.
+
+Finally, most of our measures which indicated additional operations would need to be done produced effects showing an *increase* in REIG. Only `J` (half of the interval between `U` and `L`) being divisible by 10 produced a strong positive effect on REIG.
+
+## Discussion
+
+- Strong effect of problem size
+  - Both interval size and lower bound have an effect
+  - Well supported in math cog lit
   
-- **Normalized REIG:**
-  - Last time some of the plots were misleading because plotting REIG conflates information about variance *within* and *between* users. We could try plotting *normalized REIG* (relative the the participant's mean REIG) to isolate just *within* user variance
-  - Maybe we can call it REIGN (Relative Expected Information Gain, Normalized) because it's a cool acronym and we didn't even force it.
+- Strong support for WM constraints
+  - addition borrowing & subtraction carrying
+  - Support in lit?
+  
+- No effect for odd division
+  - Are we indexing this correctly?
+  - Maybe people do division differently (especially division by 2, long division method is pro bably not efficient).
+
+- Effect for J mod 10
+  - means I is divisible by 20
+  - Makes everything very easy e.g. (20, 40) or (40,60)
+  - Any good analysis of why this is so?
+  
+- No effect of other op measures
+  - Arguably surprising
+  - Can anyone see any issues with the way this has been operationalised/tested
+  - Maybe number of ops is not a big factor of what makes math hard/scary
+  - People just as happy to do 47 - 13 as 47 - 3
+
+## Questions
+
+- Random slopes(?)
+  - I tried including them and the model ran for 45 mins. I will run a full slopes model overnight. Hopefully its results aren't super different...
+- attemptNum
+  - attemptNum still has a **very** strong effect, even controlling for everything else. Can we explain why this is? Is it relevant to our hypotheses?
+- Renaming REIG
+  - 'Relative' does not seem appropriate here.
+- condense measures?
+  - 1 predictor for no. carries/borrows, 1 for no. ops
+
+## ToDo
+
+- Plots
 
 
-# Exploratory analysis
-
-In a heatmap of no. guesses by bounds, we can see more guesses are made from bounds divisible by 10 (adjusted by 1 as discussed above).
-
-```{r}
-
-guesses.bounds <- guesses %>%
-  group_by(lowerBound, upperBound) %>%
-  summarise(n = n(),
-            EIG.relative = mean(EIG.relative),
-            .groups="drop")
-
-
-guesses.bounds %>%
-  ggplot(aes(x = lowerBound, y = upperBound, fill = log10(n))) +
-  geom_raster() + 
-  theme_minimal() + 
-  labs(
-    title = "Heatmap of no. guesses by upper and lower bounds"
-  )
-
-```
-My main takeaway from this is that poor guesses are concentrated in this 'inner triangle' where the interval is relatively high. This could be partly because high intervals are harder and partly because getting yourself into a situation where (1,98) are your bounds requires being a non-rational user
-
-```{r}
-
-guesses.bounds %>%
-  ggplot(aes(x = lowerBound, y = upperBound, fill = EIG.relative)) +
-  geom_raster() + 
-  theme_minimal() + 
-  scale_fill_distiller(palette="RdYlGn", direction = 1) +
-  labs(
-    title = "Heatmap of EIG relative by upper and lower bounds"
-  )
-
-```
-
-# Proposed processing cost measures
+# Effect of difficulty on REIG
 
 We can characterize the optimal search strategy as an algorithm which attempts to find *M*, the mid-point between the upper bound (*U*) and the lower bound (*L*). This can be broken down into three arithmetical operations:
 
@@ -91,15 +90,12 @@ We can characterize the optimal search strategy as an algorithm which attempts t
 2. *J = I / 2*
 3. *M = L + I*
 
-where *I* is the interval between *U* and *L*. [Other strategies are obviously possible but this is the one that seems intuitive to me...]
+where *I* is the interval between *U* and *L*, and *J* is half of this interval.
 
 We can then characterize the difficulty of the operation in terms of the difficulty of applying each arithemetical operation at each step. For instance, where *L* is divisible by 10, the user does not have to make a subtraction in the *ones*-place, so we might expect step (1) to be simpler.
 
-[At this point we could actually break down all of the steps that are involved in each subtraction, division and addition and how they vary depending on values of *U* and *L*]
 
 ## Proposed measures
-
-[These measures all assume that people can pull single digit operations from memory, but break multi-digit operations down into single digit operations (as one might on paper). E.g. 27 - 18 -> (17 - 8) + (10 - 10) = 9]
 
 1. Subtraction operation
 
@@ -136,6 +132,30 @@ We can then characterize the difficulty of the operation in terms of the difficu
     F. If `L < 10` difficulty **decreases** as no addition need be made in the *tens*-place (same as 1B).
     
     E. If `(L %% 10) == 0`, difficulty **decreases** as no addition must be made in the *ones*-place (same as 1C).
+    
+## Setup
+```{r}
+
+# Load libraries
+suppressMessages(library(tidyverse))
+library(tidyverse)
+library(RColorBrewer)
+library(knitr)
+library(lmerTest)
+
+# Load data from data processing 
+guesses <- read.csv('../data/guesses_processed.csv')
+games <- read.csv('../data/games_processed.csv')
+
+# Create color palette
+paired <- brewer.pal(6, "Paired")
+color1 <- paired[1]
+color2 <- paired[2]
+color3 <- paired[3]
+
+color.binary = "green"
+color.random = "red"
+```
 
 ## Extract measures
 
@@ -226,18 +246,24 @@ We run a second model under the assumptions that users are doing lazy bound upda
 # Adjusted model
 
 # Full model
-m.adj = lmer(EIG.relative ~ interval + lowerBound + lb.mod10.0 + lb.lt.10 +
+m.adj = lmer(EIG.relative ~ interval + lowerBound.adj + lb.mod10.0 + lb.lt.10 +
                             sub.borrow + sub.tens.eq + interval.odd + interval.tens.odd + 
                             add.carry + j.lt.10 + j.mod10.0 + (1 | user),
              data=guesses.adj, REML = F)
 
 summary(m.adj)
 
+```
+
+[I tried running a model with random slopes for ~45 mins and no result. I will leave it going overnight].
+
+```{r}
+
 # m.adj.slopes = lmer(EIG.relative ~ interval + lowerBound + lb.mod10.0 + lb.lt.10 +
-#                             sub.borrow + sub.tens.eq + interval.odd + interval.tens.odd + 
+#                             sub.borrow + sub.tens.eq + interval.odd + interval.tens.odd +
 #                             add.carry + j.lt.10 + j.mod10.0 +
 #                (1 + interval + lowerBound + lb.mod10.0 + lb.lt.10 +
-#                 sub.borrow + sub.tens.eq + interval.odd + interval.tens.odd + 
+#                 sub.borrow + sub.tens.eq + interval.odd + interval.tens.odd +
 #                 add.carry + j.lt.10 + j.mod10.0 | user),
 #              data=guesses.adj, REML = F)
 
@@ -252,18 +278,89 @@ AIC(m.adj)
 
 ```
 
-## Interpretation of results
 
-### Expected Effects
+# Visualisations
 
-- Interval (larger is more difficult; 1A, 2C, 3B)
-- Lower Bound (larger is more difficult; 3A)
-- Substitution borrowing (borrowing is more difficult; 1D)
-- Addition carrying (carrying is more difficult; 1C)
-- J is divisible by 10 (no addition needed in the ones place; 3E)
+## Interval size
+
+REIG tends to lower as interval size increases. With a few expected exceptions at 25, 50, 100. In general this fits with the hypothesis that it's harder to do the optimal calculation for high intervals.
+
+Below we see the effect of interval on REIG.
+
+```{r}
+
+guesses.adj %>%
+  ggplot(aes(interval, EIG.relative)) + 
+  stat_summary(fun = "mean", geom = "point") + 
+  geom_smooth(method = "lm", formula = "y ~ x", se = F) + 
+  theme_minimal() + 
+  labs(
+    y = "REIG",
+    x = "Interval"
+  )
+
+```
 
 
-# Marginal effect of attemptNum
+## Lower bound
+
+```{r}
+
+guesses.adj %>%
+  ggplot(aes(lowerBound.adj, EIG.relative)) + 
+  stat_summary(fun = "mean", geom = "point") + 
+  geom_smooth(method = "lm", formula = "y ~ x", se = F) + 
+  theme_minimal() + 
+  labs(
+    y = "REIG",
+    x = "Lower Bound"
+  )
+
+```
+
+## Borrowing
+
+```{r}
+
+guesses.adj %>%
+  mutate(sub.borrow = ifelse(sub.borrow, "Borrowing", "No Borrowing")) %>% 
+  ggplot(aes(sub.borrow, EIG.relative, fill = sub.borrow)) + 
+  stat_summary(fun = "mean", geom = "bar") + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "errorbar", width = 0.2, alpha = 0.5) + 
+  theme_minimal() + 
+  scale_fill_brewer(palette = "Paired") + 
+  theme(
+    legend.position = "none"
+  ) +
+  labs(
+    y = "REIG",
+    x = "Borrowing required for substitution"
+  )
+
+```
+
+## Carrying
+
+```{r}
+
+guesses.adj %>%
+  mutate(add.carry = ifelse(add.carry, "Carrying", "No Carrying")) %>% 
+  ggplot(aes(add.carry, EIG.relative, fill = add.carry)) + 
+  stat_summary(fun = "mean", geom = "bar") + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "errorbar", width = 0.2, alpha = 0.5) + 
+  theme_minimal() + 
+  scale_fill_brewer(palette = "Paired") + 
+  theme(
+    legend.position = "none"
+  ) +
+  labs(
+    y = "REIG",
+    x = "Carrying required for addition"
+  )
+
+```
+
+# Effect of attemptNum
 
 We augment the adjusted model above with `attemptNumReversed` as a predictor and find that it has a very strong predictive effect, even controlling for the other predictors.
 
@@ -291,26 +388,107 @@ anova(m.adj.an, test="LRT")
 
 ```
 
-# Visualisations and models
+# Heatmap analysis
 
-## 1A: Interval size
-
-REIG tends to lower as interval size increases. With a few expected exceptions at 25, 50, 100. In general this fits with the hypothesis that it's harder to do the optimal calculation for high intervals.
-
-There could be another interesting confound here where bad guessers will make multiple guesses where numAvailable > 50 and good guessers will not. The models will deal with this by setting random intercepts for participants, but maybe there's a nice way we can deal with it in the visualisations?
+In a heatmap of no. guesses by bounds, we can see more guesses are made from bounds divisible by 10 (adjusted by 1 as discussed above).
 
 ```{r}
 
-logit <- function(p) {log(p / (1-p))}
+guesses.bounds <- guesses.adj %>%
+  group_by(lowerBound.adj, upperBound.adj) %>%
+  summarise(n = n(),
+            EIG.relative = mean(EIG.relative),
+            .groups="drop")
 
-guesses %>%
-  ggplot(aes(numAvailable, EIG.relative)) + 
-  stat_summary(fun = "mean", geom = "point") + 
-  geom_smooth(method = "lm", formula = "y ~ x", se = F)
 
-m.null = lmer(EIG.relative ~ (1 | user), data=guesses, REML = F)
+guesses.bounds %>%
+  ggplot(aes(x = lowerBound.adj, y = upperBound.adj, fill = log10(n))) +
+  geom_raster() + 
+  theme_minimal() + 
+  labs(
+    title = "Heatmap of no. guesses by upper and lower bounds"
+  )
 
 ```
+
+My main takeaway from this is that poor guesses are concentrated in this 'inner triangle' where the interval is relatively high. This could be partly because high intervals are harder and partly because getting yourself into a situation where (1,98) are your bounds requires being a non-rational user
+
+```{r}
+
+guesses.bounds %>%
+  ggplot(aes(x = lowerBound.adj, y = upperBound.adj, fill = EIG.relative)) +
+  geom_raster() + 
+  theme_minimal() + 
+  scale_fill_distiller(palette="RdYlGn", direction = 1) +
+  labs(
+    title = "Heatmap of EIG relative by upper and lower bounds"
+  )
+
+```
+
+Alternate view with lower bound and interval.
+
+```{r}
+
+
+guesses.adj %>%
+  group_by(lowerBound.adj, interval) %>%
+  summarise(n = n(),
+            EIG.relative = mean(EIG.relative),
+            .groups="drop") %>%
+  ggplot(aes(x = lowerBound.adj, y = interval, fill = EIG.relative)) +
+  geom_raster() + 
+  theme_minimal() + 
+  scale_fill_distiller(palette="RdYlGn", direction = 1) +
+  labs(
+    title = "Heatmap of EIG relative by lower bound and interval"
+  )
+
+```
+
+
+# Appendix
+
+[I've added the guess index stuff to an appendix because I don't think it's as theoretically motivated as our other measures.]
+
+## REIG by Guess Index
+
+Relative EIG starts relatively high, seems to rise until ~ guess 5, then drops down at higher guess counts.
+
+I think the drop toward the end could be due to "good" guessers finishing early and not reaching that stage of their game.
+
+```{r}
+
+guesses %>%
+  ggplot(aes(attemptNum, EIG.relative)) + 
+  stat_summary(fun = "mean", geom = "point")
+
+```
+
+```{r}
+
+# Add reversed index
+guesses <- merge(
+  guesses, games %>% select(gameId, numGuesses), by="gameId"
+) %>%
+  mutate(
+    attemptNumReversed = numGuesses - (attemptNum - 1),
+  )
+
+```
+
+We can test this in a way by introducing a "reversed" index. Here we can see that "late" guesses (closer to final guess) are generally better than "early" guesses. This implies both that a) late guesses are better for everyone and b) very bad players (who take up to 12 guesses) unsurprisingly have a lower REIG on their early guesses.
+
+The late guess effect could be due to the index being smaller, which we test below.
+
+```{r}
+guesses %>%
+  ggplot(aes(attemptNumReversed, EIG.relative)) + 
+  stat_summary(fun = "mean", geom = "point")
+
+```
+
+## Interval size
 
 A likelihood ratio test comparing linear mixed effects models with random intercepts by user showed a strong negative effect of interval size (p < 0.001) -- good news!
 
@@ -320,6 +498,8 @@ Note2: I haven't used the lmerTest package Ed recommended in lecture because I'm
 
 ```{r}
 
+m.null = lmer(EIG.relative ~ (1 | user), data=guesses, REML = F)
+
 m.1A = lmer(EIG.relative ~ numAvailable + (1 | user), data=guesses, REML = F)
 
 summary(m.1A)
@@ -327,6 +507,87 @@ summary(m.1A)
 anova(m.1A, m.null)
 
 ```
+
+## Effect of "difficult" intervals
+
+Here are the "easiest" intervals (highest REIG). Although maybe we should be using proportion of optimal guesses here? It depends what we're trying to say about what successfully deploying the strategy looks like.
+
+```{r}
+
+# Example guesses
+
+# guesses %>%
+  # filter(guess == 50)
+  # filter(gameId == "0005a359-0253-4b71-a7b4-3ab47f2ef54d")
+
+guesses %>%
+  group_by(numAvailable) %>%
+  summarise(EIG.relative = mean(EIG.relative)) %>%
+  arrange(desc(EIG.relative)) %>%
+  filter(dense_rank(EIG.relative) > 89) %>%
+  ggplot(aes(reorder(factor(numAvailable), -EIG.relative), EIG.relative)) + 
+    geom_bar(stat="identity", fill=color1) + 
+  theme_minimal()
+
+
+```
+
+Because of the way the splits work, it looks like the easiest numbers are either *on*
+a 5 or a 10 (e.g. bounds like [1,100] or [5,10]), or 1 below a 5 or a 10 (e.g. [1,10], [6,10]).
+
+We can create a variable that tracks this.
+
+```{r}
+
+guesses <- guesses %>%
+  mutate(
+    intervalType = case_when(
+      numAvailable %% 10 == 0 ~ "x0",
+      numAvailable %% 5 == 0 ~ "x5",
+      (numAvailable + 1) %% 10 == 0 ~ "x9",
+      (numAvailable + 1) %% 5 == 0 ~ "x4",
+      numAvailable == 2 ~ "2",
+      TRUE ~ "Other"
+    )
+  )
+
+
+guesses %>%
+  ggplot(aes(intervalType, EIG.relative, fill=intervalType)) + 
+  stat_summary(fun = "mean", geom = "bar") + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "errorbar") + 
+  theme_minimal() + 
+  scale_fill_brewer(palette="Set2")
+```
+
+I'm surprised that Other is not lower here. Let's have a look at them against the interval size.
+
+```{r}
+
+guesses %>%
+  ggplot(aes(numAvailable, EIG.relative, color=intervalType)) + 
+  stat_summary(fun = "mean", geom = "point", mapping=aes(color=intervalType)) + 
+  # geom_smooth(method = "lm", formula = "y ~ x", se = F) + 
+  scale_color_brewer(palette="Set2") +
+  theme_minimal()
+
+```
+
+With best fit lines.
+
+All have a downward slope other than x0 intervals which are unaffected (probably due to the 100 interval on the right being so optimal)
+
+```{r}
+
+guesses %>%
+  ggplot(aes(numAvailable, EIG.relative, color=intervalType)) + 
+  stat_summary(fun = "mean", geom = "point", mapping=aes(color=intervalType)) + 
+  geom_smooth(method = "lm", formula = "y ~ x", se = F) +
+  scale_color_brewer(palette="Set2") +
+  theme_minimal()
+
+```
+
 
 ## 1B: Lower bound mod 10 == 0
 
@@ -461,125 +722,3 @@ summary(m.1C)
 anova(m.1C, m.null)
 
 ```
-
-# Appendix
-
-[I've added the guess index stuff to an appendix because I don't think it's as theoretically motivated as our other measures.]
-
-## REIG by Guess Index
-
-Relative EIG starts relatively high, seems to rise until ~ guess 5, then drops down at higher guess counts.
-
-I think the drop toward the end could be due to "good" guessers finishing early and not reaching that stage of their game.
-
-```{r}
-
-guesses %>%
-  ggplot(aes(attemptNum, EIG.relative)) + 
-  stat_summary(fun = "mean", geom = "point")
-
-```
-
-```{r}
-
-# Add reversed index
-guesses <- merge(
-  guesses, games %>% select(gameId, numGuesses), by="gameId"
-) %>%
-  mutate(
-    attemptNumReversed = numGuesses - (attemptNum - 1),
-  )
-
-```
-
-We can test this in a way by introducing a "reversed" index. Here we can see that "late" guesses (closer to final guess) are generally better than "early" guesses. This implies both that a) late guesses are better for everyone and b) very bad players (who take up to 12 guesses) unsurprisingly have a lower REIG on their early guesses.
-
-The late guess effect could be due to the index being smaller, which we test below.
-
-```{r}
-guesses %>%
-  ggplot(aes(attemptNumReversed, EIG.relative)) + 
-  stat_summary(fun = "mean", geom = "point")
-
-```
-
-## Effect of "difficult" intervals
-
-Here are the "easiest" intervals (highest REIG). Although maybe we should be using proportion of optimal guesses here? It depends what we're trying to say about what successfully deploying the strategy looks like.
-
-```{r}
-
-# Example guesses
-
-# guesses %>%
-  # filter(guess == 50)
-  # filter(gameId == "0005a359-0253-4b71-a7b4-3ab47f2ef54d")
-
-guesses %>%
-  group_by(numAvailable) %>%
-  summarise(EIG.relative = mean(EIG.relative)) %>%
-  arrange(desc(EIG.relative)) %>%
-  filter(dense_rank(EIG.relative) > 89) %>%
-  ggplot(aes(reorder(factor(numAvailable), -EIG.relative), EIG.relative)) + 
-    geom_bar(stat="identity", fill=color1) + 
-  theme_minimal()
-
-
-```
-
-Because of the way the splits work, it looks like the easiest numbers are either *on*
-a 5 or a 10 (e.g. bounds like [1,100] or [5,10]), or 1 below a 5 or a 10 (e.g. [1,10], [6,10]).
-
-We can create a variable that tracks this.
-
-```{r}
-
-guesses <- guesses %>%
-  mutate(
-    intervalType = case_when(
-      numAvailable %% 10 == 0 ~ "x0",
-      numAvailable %% 5 == 0 ~ "x5",
-      (numAvailable + 1) %% 10 == 0 ~ "x9",
-      (numAvailable + 1) %% 5 == 0 ~ "x4",
-      numAvailable == 2 ~ "2",
-      TRUE ~ "Other"
-    )
-  )
-
-
-guesses %>%
-  ggplot(aes(intervalType, EIG.relative, fill=intervalType)) + 
-  stat_summary(fun = "mean", geom = "bar") + 
-  stat_summary(fun.data = "mean_cl_boot", geom = "errorbar") + 
-  theme_minimal() + 
-  scale_fill_brewer(palette="Set2")
-```
-
-I'm surprised that Other is not lower here. Let's have a look at them against the interval size.
-
-```{r}
-
-guesses %>%
-  ggplot(aes(numAvailable, EIG.relative, color=intervalType)) + 
-  stat_summary(fun = "mean", geom = "point", mapping=aes(color=intervalType)) + 
-  # geom_smooth(method = "lm", formula = "y ~ x", se = F) + 
-  scale_color_brewer(palette="Set2") +
-  theme_minimal()
-
-```
-
-With best fit lines.
-
-All have a downward slope other than x0 intervals which are unaffected (probably due to the 100 interval on the right being so optimal)
-
-```{r}
-
-guesses %>%
-  ggplot(aes(numAvailable, EIG.relative, color=intervalType)) + 
-  stat_summary(fun = "mean", geom = "point", mapping=aes(color=intervalType)) + 
-  geom_smooth(method = "lm", formula = "y ~ x", se = F) +
-  scale_color_brewer(palette="Set2") +
-  theme_minimal()
-
-```
-
