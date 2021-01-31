@@ -17,6 +17,7 @@ library(lmerTest)
 
 # Load data from data processing 
 guesses <- read.csv('../data/guesses_processed.csv')
+games <- read.csv('../data/games_processed.csv')
 
 # Create color palette
 paired <- brewer.pal(6, "Paired")
@@ -138,7 +139,7 @@ We can then characterize the difficulty of the operation in terms of the difficu
 
 ## Extract measures
 
-We extract the measures described above
+We extract the measures described above.
 
 ```{r}
 
@@ -166,19 +167,14 @@ guesses <- guesses %>%
 
 ```
 
-We extract the same measures under the assumption that 
+We extract the same measures under the assumption that users are doing 'lazy updating' of boundaries.
 
 ```{r}
 # Same calculations with adjusted bounds
 guesses.adj <- guesses %>%
   mutate(
     
-    # Adjusted lower bound for lazy updating
-    # lowerBound.adj = case_when(
-    #   lowerBound == 1 ~ 1,  # No adjustment when L = 1
-    #   TRUE ~ lowerBound - 1  # If L has moved, decrement by 1 to simulate lazy updating
-    # ),
-    # Adjusted lower bound assuming user starts with 0
+    # Adjusted lower bound for lazy updating (assuming represents initial lb as 0)
     lowerBound.adj = lowerBound - 1,
     
     # Adjusted upper bound for lazy updating
@@ -237,7 +233,17 @@ m.adj = lmer(EIG.relative ~ interval + lowerBound + lb.mod10.0 + lb.lt.10 +
 
 summary(m.adj)
 
+# m.adj.slopes = lmer(EIG.relative ~ interval + lowerBound + lb.mod10.0 + lb.lt.10 +
+#                             sub.borrow + sub.tens.eq + interval.odd + interval.tens.odd + 
+#                             add.carry + j.lt.10 + j.mod10.0 +
+#                (1 + interval + lowerBound + lb.mod10.0 + lb.lt.10 +
+#                 sub.borrow + sub.tens.eq + interval.odd + interval.tens.odd + 
+#                 add.carry + j.lt.10 + j.mod10.0 | user),
+#              data=guesses.adj, REML = F)
+
 ```
+
+We compare the AIC of the adjusted and non-adjusted models. The adjusted model has a lower AIC so we decide to continue using the adjusted analysis (which is better motivated anyway).
 
 ```{r}
 
@@ -246,7 +252,44 @@ AIC(m.adj)
 
 ```
 
+## Interpretation of results
 
+### Expected Effects
+
+- Interval (larger is more difficult; 1A, 2C, 3B)
+- Lower Bound (larger is more difficult; 3A)
+- Substitution borrowing (borrowing is more difficult; 1D)
+- Addition carrying (carrying is more difficult; 1C)
+- J is divisible by 10 (no addition needed in the ones place; 3E)
+
+
+# Marginal effect of attemptNum
+
+We augment the adjusted model above with `attemptNumReversed` as a predictor and find that it has a very strong predictive effect, even controlling for the other predictors.
+
+[I'm not quite sure how to interpret this as I assumed a lot of its effect would be explained by interval.]
+
+```{r}
+
+# Add reversed index
+guesses.adj <- merge(
+  guesses.adj, games %>% select(gameId, numGuesses), by="gameId"
+  ) %>%
+  mutate(
+    attemptNumReversed = numGuesses - (attemptNum - 1),
+  )
+
+# Full model
+m.adj.an = lmer(EIG.relative ~ interval + lowerBound + lb.mod10.0 + lb.lt.10 +
+                            sub.borrow + sub.tens.eq + interval.odd + interval.tens.odd + 
+                            add.carry + j.lt.10 + j.mod10.0  + attemptNumReversed + (1 | user),
+             data=guesses.adj, REML = F)
+
+summary(m.adj.an)
+
+anova(m.adj.an, test="LRT")
+
+```
 
 # Visualisations and models
 
@@ -264,6 +307,8 @@ guesses %>%
   ggplot(aes(numAvailable, EIG.relative)) + 
   stat_summary(fun = "mean", geom = "point") + 
   geom_smooth(method = "lm", formula = "y ~ x", se = F)
+
+m.null = lmer(EIG.relative ~ (1 | user), data=guesses, REML = F)
 
 ```
 
@@ -298,9 +343,11 @@ guesses %>% mutate(mod10 = lowerBound %% 10) %>% ggplot(aes(mod10, EIG.relative)
   theme_minimal()
 
 ```
+
 Doesn't look like much of an effect. Interestingly, _0 is lower than others, even though calculating the midpoint of the interval shold be easiest here. Perhaps this is because we only land on _0 if the prior guess was really good already? Most of these might are likely going to be 50.
 
 Let's try filtering out the first two guesses to see if guessing 50 on first guess was driving the poor showing of _0. 
+
 ```{r}
 guesses %>% filter(attemptNum > 2) %>% mutate(mod10 = lowerBound %% 10) %>% ggplot(aes(mod10, EIG.relative)) +
   stat_summary(fun = "mean", geom = "bar") + 
