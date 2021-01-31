@@ -17,8 +17,6 @@ library(lmerTest)
 
 # Load data from data processing 
 guesses <- read.csv('../data/guesses_processed.csv')
-games <- read.csv('../data/games_processed.csv')
-users <- read.csv('../data/users_processed.csv')
 
 # Create color palette
 paired <- brewer.pal(6, "Paired")
@@ -149,9 +147,8 @@ guesses <- guesses %>%
     REIG.inv = 1 - EIG.relative,
   
     # Subtraction measures
-    interval = numAvailable,
+    interval = upperBound - lowerBound,
     lb.mod10.0 = lowerBound %% 10 == 0,
-    lb.mod10.0.adj = (lowerBound - 1) %% 10 == 0,
     lb.lt.10 = lowerBound < 10,
     sub.borrow = (upperBound %% 10) < (lowerBound %% 10),
     sub.tens.eq = (upperBound %/% 10) == (lowerBound %/% 10),
@@ -165,46 +162,91 @@ guesses <- guesses %>%
     add.carry = ((J %% 10) + (lowerBound %% 10)) >= 10,
     j.lt.10 = J < 10,
     j.mod10.0 = (J %% 10) == 0
+  )
+
+```
+
+We extract the same measures under the assumption that 
+
+```{r}
+# Same calculations with adjusted bounds
+guesses.adj <- guesses %>%
+  mutate(
     
+    # Adjusted lower bound for lazy updating
+    # lowerBound.adj = case_when(
+    #   lowerBound == 1 ~ 1,  # No adjustment when L = 1
+    #   TRUE ~ lowerBound - 1  # If L has moved, decrement by 1 to simulate lazy updating
+    # ),
+    # Adjusted lower bound assuming user starts with 0
+    lowerBound.adj = lowerBound - 1,
+    
+    # Adjusted upper bound for lazy updating
+    upperBound.adj = case_when(
+      upperBound == 100 ~ 100,  # No adjustment when U = 100
+      TRUE ~ upperBound + 1  # If U has moved, increment by 1 to simulate lazy updating
+    ),
+
+    # Subtraction measures
+    interval = upperBound.adj - lowerBound.adj,
+    lb.mod10.0 = lowerBound.adj %% 10 == 0,
+    lb.lt.10 = lowerBound.adj < 10,
+    sub.borrow = (upperBound.adj %% 10) < (lowerBound.adj %% 10),
+    sub.tens.eq = (upperBound.adj %/% 10) == (lowerBound.adj %/% 10),
+  
+    # Division measures
+    interval.odd = (interval %% 2 == 1),
+    interval.tens.odd = ((interval %/% 10) %% 2) == 1,
+  
+    # Addition measures
+    J = interval / 2,
+    add.carry = ((J %% 10) + (lowerBound.adj %% 10)) >= 10,
+    j.lt.10 = J < 10,
+    j.mod10.0 = (J %% 10) == 0
   )
 
 ```
 
 ## Linear Model 
 
-We make a kitchen sink model with all of our measures. The measures are mostly added in order of 
+We make a kitchen sink model with all of our measures.
 
 ```{r}
 
 # Full model
-m.all = lmer(EIG.relative ~ numAvailable + lowerBound + lb.mod10.0 + lb.lt.10 + sub.borrow +
+m.all = lmer(EIG.relative ~ interval + lowerBound + lb.mod10.0 + lb.lt.10 + sub.borrow +
                         sub.tens.eq + interval.odd + interval.tens.odd + 
                         add.carry + j.lt.10 + j.mod10.0 + (1 | user),
              data=guesses, REML = F)
 
 summary(m.all)
 
-anova(m.all, test="LRT")
-
 ```
 
+We run a second model under the assumptions that users are doing lazy bound updating
 
 ```{r}
 
 # Adjusted model
 
 # Full model
-m.adj = lmer(EIG.relative ~ numAvailable + lowerBound + lb.mod10.0.adj + lb.lt.10 +
+m.adj = lmer(EIG.relative ~ interval + lowerBound + lb.mod10.0 + lb.lt.10 +
                             sub.borrow + sub.tens.eq + interval.odd + interval.tens.odd + 
                             add.carry + j.lt.10 + j.mod10.0 + (1 | user),
-             data=guesses, REML = F)
+             data=guesses.adj, REML = F)
 
 summary(m.adj)
 
-anova(m.adj, test="LRT")
+```
 
+```{r}
+
+AIC(m.all)
+AIC(m.adj)
 
 ```
+
+
 
 # Visualisations and models
 
