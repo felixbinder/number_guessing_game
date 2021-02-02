@@ -406,8 +406,11 @@ guesses.bounds %>%
   geom_raster() + 
   theme_minimal() + 
   labs(
-    title = "Heatmap of no. guesses by upper and lower bounds"
-  )
+    title = "Frequency of intervals",
+    fill='Frequency (log)'
+  )+
+  xlab("Lower bound")+
+  ylab("Upper bound")
 
 ```
 
@@ -421,9 +424,11 @@ guesses.bounds %>%
   theme_minimal() + 
   scale_fill_distiller(palette="RdYlGn", direction = 1) +
   labs(
-    title = "Heatmap of EIG relative by upper and lower bounds"
-  )
-
+    title = "rEIG per interval",
+    fill='rEIG'
+  )+
+  xlab("Lower bound")+
+  ylab("Upper bound")
 ```
 
 Alternate view with lower bound and interval.
@@ -441,8 +446,12 @@ guesses.adj %>%
   theme_minimal() + 
   scale_fill_distiller(palette="RdYlGn", direction = 1) +
   labs(
-    title = "Heatmap of EIG relative by lower bound and interval"
-  )
+    title = "rEIG per lower bound and interval size",
+    fill='rEIG'
+  )+
+  xlab("Lower bound")+
+  ylab("Interval size")
+
 
 ```
 
