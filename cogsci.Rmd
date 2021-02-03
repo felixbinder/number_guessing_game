@@ -1,0 +1,280 @@
+---
+title: "cogsci"
+author: "Cameron Jones"
+date: "02/02/2021"
+output: html_document
+---
+# Setup
+
+```{r}
+
+# Load libraries
+suppressMessages(library(tidyverse))
+library(tidyverse)
+library(RColorBrewer)
+library(knitr)
+library(lmerTest)
+
+# Load data from data processing 
+guesses <- read.csv('../data/guesses_processed.csv')
+games <- read.csv('../data/games_processed.csv')
+
+# Create color palette
+paired <- brewer.pal(6, "Paired")
+color1 <- paired[1]
+color2 <- paired[2]
+color3 <- paired[3]
+
+color.binary = "green"
+color.random = "red"
+```
+
+```{r}
+# Same calculations with adjusted bounds
+guesses.adj <- guesses %>%
+  mutate(
+    
+    # Adjusted lower bound for lazy updating (assuming represents initial lb as 0)
+    lowerBound.adj = lowerBound - 1,
+    
+    # Adjusted upper bound for lazy updating
+    upperBound.adj = case_when(
+      upperBound == 100 ~ 100,  # No adjustment when U = 100
+      TRUE ~ upperBound + 1  # If U has moved, increment by 1 to simulate lazy updating
+    ),
+    
+    # Size measures
+    interval = upperBound.adj - lowerBound.adj,
+    meanBound = (upperBound.adj + lowerBound.adj) / 2,
+
+    # Subtraction measures
+    lb.mod10.0 = lowerBound.adj %% 10 == 0,
+    lb.lt.10 = lowerBound.adj < 10,
+    sub.borrow = (upperBound.adj %% 10) < (lowerBound.adj %% 10),
+    sub.tens.eq = (upperBound.adj %/% 10) == (lowerBound.adj %/% 10),
+  
+    # Division measures
+    interval.odd = (interval %% 2 == 1),
+    interval.tens.odd = ((interval %/% 10) %% 2) == 1,
+    interval.lt.10 = interval < 10,
+  
+    # Addition measures
+    J = interval / 2,
+    add.carry = ((J %% 10) + (lowerBound.adj %% 10)) >= 10,
+    j.lt.10 = J < 10,
+    j.mod10.0 = (J %% 10) == 0,
+  ) %>%
+  rowwise() %>%
+  mutate(
+    # Wrapped measures
+    carries = sum(sub.borrow, add.carry, interval.odd, interval.tens.odd),
+    ops = (1 - lb.lt.10) + (1 - lb.mod10.0)  + # Subtraction
+      (1 - interval.lt.10) + 1 + # Division
+      (1 - (j.lt.10 | lb.lt.10)) + (1 - (j.mod10.0 | lb.mod10.0))
+    # ops = 6 + sum((-2 * lb.mod10.0), (-2 * lb.lt.10), -j.lt.10, -j.mod10.0, -interval.lt.10)
+  )
+
+```
+
+```{r}
+
+guesses.adj %>%
+  filter(ops == 1) %>%
+  select(upperBound.adj, lowerBound.adj, ops)
+
+```
+
+# Full Model
+
+```{r}
+
+# Adjusted model
+
+# Full model
+m.adj = lmer(EIG.relative ~ interval + interval + meanBound + carries + ops + (1 | user),
+             data=guesses.adj, REML = F)
+
+summary(m.adj)
+
+```
+
+
+# Interval size
+
+REIG tends to lower as interval size increases. With a few expected exceptions at 25, 50, 100. In general this fits with the hypothesis that it's harder to do the optimal calculation for high intervals.
+
+Below we see the effect of interval on REIG.
+
+```{r}
+
+p.interval <- guesses.adj %>%
+  # group_by(user) %>%
+  # mutate(rEIG.user.mean = mean(EIG.relative),
+  #        rEIGn = EIG.relative / rEIG.user.mean) %>%
+  group_by(interval) %>%
+  summarise(EIG.relative = mean(EIG.relative)) %>%
+  ggplot(aes(interval, EIG.relative)) + 
+  stat_summary(fun = "mean", geom = "point", color = "#444444",
+               size=1.5) + 
+  geom_smooth(method = "lm", formula = "y ~ x", se = T,
+              color="#FF0022") + 
+  theme_minimal() + 
+  labs(
+    y = "rEIG",
+    x = "Interval Size"
+  ) + 
+  theme(
+      # Text
+    panel.grid.minor = element_line(size = 0.5),
+    panel.grid.major = element_line(size = 1),
+      # Text
+    axis.title.x = element_text(size=22, margin = margin(t = 10, r = 0, b = 0, l = 0)),
+    axis.title.y = element_text(size=22, margin = margin(t = 0, r = 10, b = 0, l = 0)),
+    axis.text = element_text(size=15)
+)
+
+p.interval
+
+```
+
+```{r}
+
+ggsave("reig-interval.png", p.interval, bg = "transparent", width=7, height=5)
+
+```
+
+
+```{r}
+
+
+# Interval modek
+m.interval = lmer(EIG.relative ~ interval + (1 | user),
+             data=guesses.adj, REML = F)
+
+summary(m.interval)
+
+```
+
+## Mean bound size
+
+```{r}
+
+p.meanBound <- guesses.adj %>%
+  ggplot(aes(meanBound, EIG.relative)) + 
+  stat_summary(fun = "mean", geom = "point", color = "#444444") + 
+  geom_smooth(method = "lm", formula = "y ~ x", se = T,
+              color="#FF0022") + 
+  theme_minimal() + 
+  labs(
+    y = "rEIG",
+    x = "Mean Bound Size"
+  ) + 
+  theme(
+      # Text
+    axis.title.x = element_text(size=18, margin = margin(t = 10, r = 0, b = 0, l = 0)),
+    axis.title.y = element_text(size=18, margin = margin(t = 0, r = 10, b = 0, l = 0)),
+    strip.text = element_text(size=14),
+    axis.text = element_text(size=12)
+)
+
+p.meanBound
+
+```
+
+```{r}
+
+# Mean Bound model
+m.mb = lmer(EIG.relative ~ meanBound + (1 | user),
+             data=guesses.adj, REML = F)
+
+summary(m.mb)
+
+```
+
+
+
+## Carries & Borrows
+
+```{r}
+
+p.carry <- guesses.adj %>%
+  ggplot(aes(carries, EIG.relative)) + 
+  stat_summary(fun = "mean", geom = "point", color = "#444444",
+               size=3) + 
+  geom_smooth(method = "lm", formula = "y ~ x", se = T,
+              color="#FF0022", size=1.5) + 
+  theme_minimal() + 
+  labs(
+    y = "rEIG",
+    x = "No. Carries"
+  ) + 
+  theme(
+    panel.grid.minor = element_line(size = 0.5),
+    panel.grid.major = element_line(size = 1),
+      # Text
+    axis.title.x = element_text(size=22, margin = margin(t = 10, r = 0, b = 0, l = 0)),
+    axis.title.y = element_text(size=22, margin = margin(t = 0, r = 10, b = 0, l = 0)),
+    axis.text = element_text(size=15)
+)
+
+p.carry
+
+```
+```{r}
+ggsave("reig-carry.png", p.carry, bg = "transparent", width=7, height=5)
+```
+
+```{r}
+
+# Carry model
+m.carry = lmer(EIG.relative ~ carries + (1 | user),
+             data=guesses.adj, REML = F)
+
+summary(m.carry)
+
+```
+
+
+## Operations
+
+```{r}
+
+guesses.adj %>%
+  ggplot(aes(ops, EIG.relative)) + 
+  stat_summary(fun = "mean", geom = "point") +
+  geom_smooth(method = "lm", formula = "y ~ x", se = T) +
+  # stat_summary(fun = "mean", geom = "bar", fill=color1) +
+  # stat_summary(fun.data = "mean_cl_boot", geom = "errorbar", width = 0.2, alpha = 0.5) +
+  theme_minimal() + 
+  labs(
+    y = "rEIG",
+    x = "No. Single Digit Operations"
+  )
+
+```
+
+```{r}
+
+# Carry model
+m.ops = lmer(EIG.relative ~ ops + (1 | user),
+             data=guesses.adj, REML = F)
+
+summary(m.ops)
+
+```
+
+
+# Testing
+
+
+```{r}
+
+guesses.adj <- guesses.adj %>%
+  mutate(
+    random.guess = runif(1, lowerBound, upperBound)
+    
+  )
+
+
+
+```

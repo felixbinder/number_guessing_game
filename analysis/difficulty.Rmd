@@ -213,13 +213,27 @@ guesses.adj <- guesses %>%
     # Division measures
     interval.odd = (interval %% 2 == 1),
     interval.tens.odd = ((interval %/% 10) %% 2) == 1,
+    interval.lt.10 = interval < 10,
   
     # Addition measures
     J = interval / 2,
     add.carry = ((J %% 10) + (lowerBound.adj %% 10)) >= 10,
     j.lt.10 = J < 10,
-    j.mod10.0 = (J %% 10) == 0
+    j.mod10.0 = (J %% 10) == 0,
+  ) %>%
+  rowwise() %>%
+  mutate(
+        # Wrapped measures
+    carries = sum(sub.borrow, add.carry, interval.odd, interval.tens.odd),
+    ops = 6 + sum((-2 * lb.mod10.0), (-2*-lb.lt.10), -j.lt.10, -j.mod10.0, -interval.lt.10)
   )
+
+```
+
+```{r}
+
+guesses.adj %>%
+  head(20)
 
 ```
 
@@ -255,17 +269,30 @@ summary(m.adj)
 
 ```
 
+```{r}
+
+# Full model
+m.adj = lmer(EIG.relative ~ interval + lowerBound.adj + carries + ops + (1 | user),
+             data=guesses.adj, REML = F)
+
+summary(m.adj)
+
+```
+
 [I tried running a model with random slopes for ~45 mins and no result. I will leave it going overnight].
 
 ```{r}
 
-# m.adj.slopes = lmer(EIG.relative ~ interval + lowerBound + lb.mod10.0 + lb.lt.10 +
-#                             sub.borrow + sub.tens.eq + interval.odd + interval.tens.odd +
-#                             add.carry + j.lt.10 + j.mod10.0 +
-#                (1 + interval + lowerBound + lb.mod10.0 + lb.lt.10 +
-#                 sub.borrow + sub.tens.eq + interval.odd + interval.tens.odd +
-#                 add.carry + j.lt.10 + j.mod10.0 | user),
-#              data=guesses.adj, REML = F)
+
+m.adj.slopes = lmer(EIG.relative ~ interval + lowerBound.adj + lb.mod10.0 + lb.lt.10 +
+                            sub.borrow + sub.tens.eq + interval.odd + interval.tens.odd +
+                            add.carry + j.lt.10 + j.mod10.0 +
+               (1 + interval + lowerBound + lb.mod10.0 + lb.lt.10 +
+                sub.borrow + sub.tens.eq + interval.odd + interval.tens.odd +
+                add.carry + j.lt.10 + j.mod10.0 | user),
+             data=guesses.adj, REML = F)
+
+summary(m.adj.slopes)
 
 ```
 
