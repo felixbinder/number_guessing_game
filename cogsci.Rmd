@@ -18,6 +18,7 @@ library(lmerTest)
 # Load data from data processing 
 guesses <- read.csv('../data/guesses_processed.csv')
 games <- read.csv('../data/games_processed.csv')
+random_guesses <- read.csv('../data/)
 
 # Create color palette
 paired <- brewer.pal(6, "Paired")
@@ -269,12 +270,139 @@ summary(m.ops)
 
 ```{r}
 
+source("get_EIG.R")
+
 guesses.adj <- guesses.adj %>%
   mutate(
-    random.guess = runif(1, lowerBound, upperBound)
-    
+    random.guess = round(runif(1, lowerBound, upperBound)),
+    EIG.random = get_EIG(lowerBound, upperBound, random.guess)
   )
 
 
 
+```
+
+```{r}
+
+guesses.adj %>%
+  select(upperBound, lowerBound, guess, optimalGuess, random.guess, EIG.optimal, EIG, EIG.random) %>%
+  summary()
+
+```
+
+```{r}
+
+users <-  %>%
+  group_by(user) %>%
+  summarise(
+    EIG = mean(EIG),
+    EIG.relative = mean(EIG.relative)
+  )
+
+p.eig.user.random <- users %>%
+  ggplot(aes(x = EIG)) + 
+  geom_density(data = users.random,
+               color=color.random, fill=color.random, alpha=0.5, size=0.5) +
+  # geom_density(data = users.binary,
+               # color=color.binary, fill=color.binary, alpha=0.5, size=0.5) +
+  # geom_density(color=color.human, fill = color.human, alpha=0.8, size=0.5) +
+  theme_minimal() +
+  labs(
+    x = "Expected Information Gain",
+    y = "Density"
+  ) + 
+  xlim(0, 1.5) +
+  ylim(0, 7) +
+  theme(
+    panel.background = element_rect(fill = "transparent",colour = NA),
+    plot.background = element_rect(fill = "transparent",colour = NA),
+    panel.grid = element_blank(),
+    axis.title.y = element_blank(),
+    axis.text.y = element_blank(),
+    axis.text = element_text(color = "black"),
+    text = element_text(color = "black", size=20)
+  )
+
+```
+
+## Random
+```{r}
+
+df.random = guesses.adj %>%
+  pivot_longer(cols=c(EIG, EIG.random))
+
+m.random = lm(value ~ name, data=df.random)
+
+summary(m.random)
+
+anova(m.random)
+
+```
+
+
+## Random
+```{r}
+
+df.optimal = guesses.adj %>%
+  pivot_longer(cols=c(EIG, EIG.optimal))
+
+m.optimal = lm(value ~ name, data=df.optimal)
+
+summary(m.optimal)
+
+anova(m.optimal)
+
+```
+
+
+# Adjustment
+
+```{r}
+guesses <- guesses %>%
+  mutate(
+    REIG.inv = 1 - EIG.relative,
+    
+    meanBound = (lowerBound + upperBound) / 2,
+  
+    # Subtraction measures
+    interval = upperBound - lowerBound,
+    lb.mod10.0 = lowerBound %% 10 == 0,
+    lb.lt.10 = lowerBound < 10,
+    sub.borrow = (upperBound %% 10) < (lowerBound %% 10),
+    sub.tens.eq = (upperBound %/% 10) == (lowerBound %/% 10),
+  
+    # Division measures
+    interval.odd = (interval %% 2 == 1),
+    interval.tens.odd = ((interval %/% 10) %% 2) == 1,
+    interval.lt.10 = interval < 10,
+  
+    # Addition measures
+    J = interval / 2,
+    add.carry = ((J %% 10) + (lowerBound %% 10)) >= 10,
+    j.lt.10 = J < 10,
+    j.mod10.0 = (J %% 10) == 0
+  ) %>%
+  rowwise() %>%
+  mutate(
+    # Wrapped measures
+    carries = sum(sub.borrow, add.carry, interval.odd, interval.tens.odd),
+    ops = (1 - lb.lt.10) + (1 - lb.mod10.0)  + # Subtraction
+      (1 - interval.lt.10) + 1 + # Division
+      (1 - (j.lt.10 | lb.lt.10)) + (1 - (j.mod10.0 | lb.mod10.0))
+    # ops = 6 + sum((-2 * lb.mod10.0), (-2 * lb.lt.10), -j.lt.10, -j.mod10.0, -interval.lt.10)
+  )
+  
+
+
+m.all = lmer(EIG.relative ~ interval + interval + meanBound + carries + ops + (1 | user),
+             data=guesses, REML = F)
+
+summary(m.all)
+
+
+```
+
+```{r}
+AIC(m.all)
+AIC(m.adj)
 ```
