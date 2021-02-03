@@ -164,7 +164,7 @@ ggsave("img/eig_user.png", p.eig.user, bg = "transparent", width = 10, height = 
 
 #### COGSCI 2021 figure
 
-p.eig.user <- users %>%
+p.eig.user.cogs <- users %>%
   ggplot(aes(x = EIG)) + 
   geom_density(data = users.random,
                color=color.random, fill=color.random, alpha=0.5, size=0.5) +
@@ -174,8 +174,8 @@ p.eig.user <- users %>%
   theme_minimal() +
   labs(
     x = "Expected Information Gain",
-    y = "Density",
-    title = "Distribution of Expected Information Gain across guesses"
+    y = "Density"
+    # title = "Distribution of Expected Information Gain across guesses"
   ) + 
   xlim(0, 1.5) +
   ylim(0, 7) +
@@ -183,13 +183,13 @@ p.eig.user <- users %>%
     panel.background = element_rect(fill = "transparent",colour = NA),
     plot.background = element_rect(fill = "transparent",colour = NA),
     panel.grid = element_blank(),
-    axis.title.y = element_blank(),
+    # axis.title.y = element_blank(),
     axis.text.y = element_blank(),
     axis.text = element_text(color = "black"),
-    text = element_text(color = "black", size=20)
-  )
+    text = element_text(color = "black", size=24)
+  ) 
 
-ggsave("img/eig_user_cogsci2021.png", p.eig.user, bg = "transparent", width = 10, height = 5)
+ggsave("img/eig_user_cogsci2021.png", p.eig.user.cogs, bg = "transparent", width = 10, height = 5)
 
 
 # ----- REIG vs Game Index ----- #
