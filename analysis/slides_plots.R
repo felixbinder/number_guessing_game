@@ -60,7 +60,7 @@ p.eig.user.empty <- users %>%
   # geom_density(data = users.binary,
   # color=color.binary, fill=color.binary, alpha=0.5, size=0.5) +
   # geom_density(color=color.human, fill = color.human, alpha=0.8, size=0.5) +
-  geom_hline(yintercept=0, color="white", size=0.5) +
+  geom_hline(yintercept=0, color="black", size=0.5) +
   theme_minimal() +
   labs(
     x = "Expected Information Gain",
@@ -74,8 +74,8 @@ p.eig.user.empty <- users %>%
     panel.grid = element_blank(),
     axis.title.y = element_blank(),
     axis.text.y = element_blank(),
-    axis.text = element_text(color = "white"),
-    text = element_text(color = "white", size=20)
+    axis.text = element_text(color = "black"),
+    text = element_text(color = "black", size=20)
   )
 
 ggsave("img/eig_user_empty.png", p.eig.user.empty, bg = "transparent", width = 10, height = 5)
@@ -103,8 +103,8 @@ p.eig.user.random <- users %>%
     panel.grid = element_blank(),
     axis.title.y = element_blank(),
     axis.text.y = element_blank(),
-    axis.text = element_text(color = "white"),
-    text = element_text(color = "white", size=20)
+    axis.text = element_text(color = "black"),
+    text = element_text(color = "black", size=20)
   )
 
 ggsave("img/eig_user_random.png", p.eig.user.random, bg = "transparent", width = 10, height = 5)
@@ -129,8 +129,8 @@ p.eig.user.binary <- users %>%
     panel.grid = element_blank(),
     axis.title.y = element_blank(),
     axis.text.y = element_blank(),
-    axis.text = element_text(color = "white"),
-    text = element_text(color = "white", size=20)
+    axis.text = element_text(color = "black"),
+    text = element_text(color = "black", size=20)
   )
 
 ggsave("img/eig_user_binary.png", p.eig.user.binary, bg = "transparent", width = 10, height = 5)
@@ -156,11 +156,40 @@ p.eig.user <- users %>%
     panel.grid = element_blank(),
     axis.title.y = element_blank(),
     axis.text.y = element_blank(),
-    axis.text = element_text(color = "white"),
-    text = element_text(color = "white", size=20)
+    axis.text = element_text(color = "black"),
+    text = element_text(color = "black", size=20)
   )
 
 ggsave("img/eig_user.png", p.eig.user, bg = "transparent", width = 10, height = 5)
+
+#### COGSCI 2021 figure
+
+p.eig.user <- users %>%
+  ggplot(aes(x = EIG)) + 
+  geom_density(data = users.random,
+               color=color.random, fill=color.random, alpha=0.5, size=0.5) +
+  geom_density(data = users.binary,
+               color=color.binary, fill=color.binary, alpha=0.5, size=0.5) +
+  geom_density(color=color.human, fill = color.human, alpha=0.8, size=0.5) +
+  theme_minimal() +
+  labs(
+    x = "Expected Information Gain",
+    y = "Density",
+    title = "Distribution of Expected Information Gain across guesses"
+  ) + 
+  xlim(0, 1.5) +
+  ylim(0, 7) +
+  theme(
+    panel.background = element_rect(fill = "transparent",colour = NA),
+    plot.background = element_rect(fill = "transparent",colour = NA),
+    panel.grid = element_blank(),
+    axis.title.y = element_blank(),
+    axis.text.y = element_blank(),
+    axis.text = element_text(color = "black"),
+    text = element_text(color = "black", size=20)
+  )
+
+ggsave("img/eig_user_cogsci2021.png", p.eig.user, bg = "transparent", width = 10, height = 5)
 
 
 # ----- REIG vs Game Index ----- #
@@ -197,8 +226,8 @@ p.reig.idx.empty <- games %>%
     panel.background = element_rect(fill = "transparent",colour = NA),
     plot.background = element_rect(fill = "transparent",colour = NA),
     panel.grid = element_blank(),
-    axis.text = element_text(color = "white"),
-    text = element_text(color = "white", size=20)
+    axis.text = element_text(color = "black"),
+    text = element_text(color = "black", size=20)
   )
 
 ggsave("img/reig_idx_empty.png", p.reig.idx.empty, bg = "transparent", width = 10, height = 5)
@@ -234,8 +263,8 @@ p.reig.idx.1 <- games %>%
     panel.background = element_rect(fill = "transparent",colour = NA),
     plot.background = element_rect(fill = "transparent",colour = NA),
     panel.grid = element_blank(),
-    axis.text = element_text(color = "white"),
-    text = element_text(color = "white", size=20)
+    axis.text = element_text(color = "black"),
+    text = element_text(color = "black", size=20)
   )
 
 ggsave("img/reig_idx_1.png", p.reig.idx.1, bg = "transparent", width = 10, height = 5)
@@ -274,8 +303,8 @@ p.reig.idx.2 <- games %>%
     panel.background = element_rect(fill = "transparent",colour = NA),
     plot.background = element_rect(fill = "transparent",colour = NA),
     panel.grid = element_blank(),
-    axis.text = element_text(color = "white"),
-    text = element_text(color = "white", size=20),
+    axis.text = element_text(color = "black"),
+    text = element_text(color = "black", size=20),
     legend.position = "none"
   )
 
@@ -297,7 +326,7 @@ p.reig.idx.3.empty <- games %>%
   #                  binwidth = 5,
   #                  color=color.human) +
   geom_hline(yintercept = 1,
-             color = "white",
+             color = "black",
              size = 1,
              linetype = "dashed"
   )+
@@ -312,8 +341,8 @@ p.reig.idx.3.empty <- games %>%
     panel.background = element_rect(fill = "transparent",colour = NA),
     plot.background = element_rect(fill = "transparent",colour = NA),
     panel.grid = element_blank(),
-    axis.text = element_text(color = "white"),
-    text = element_text(color = "white", size=20),
+    axis.text = element_text(color = "black"),
+    text = element_text(color = "black", size=20),
     legend.position = "none"
   )
 
@@ -335,7 +364,7 @@ p.reig.idx.3 <- games %>%
                    binwidth = 5,
                    color=color.human) +
   geom_hline(yintercept = 1,
-             color = "white",
+             color = "black",
              size = 1,
              linetype = "dashed"
   )+
@@ -348,8 +377,8 @@ p.reig.idx.3 <- games %>%
     panel.background = element_rect(fill = "transparent",colour = NA),
     plot.background = element_rect(fill = "transparent",colour = NA),
     panel.grid = element_blank(),
-    axis.text = element_text(color = "white"),
-    text = element_text(color = "white", size=20),
+    axis.text = element_text(color = "black"),
+    text = element_text(color = "black", size=20),
     legend.position = "none"
   )
 
