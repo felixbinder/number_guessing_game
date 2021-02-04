@@ -1,0 +1,393 @@
+
+\documentclass[10pt,letterpaper]{article}
+
+\usepackage{cogsci}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{color}
+
+% \cogscifinalcopy % Uncomment this line for the final submission 
+
+\usepackage{pslatex}
+\PassOptionsToPackage{hyphens}{url}
+\usepackage{hyperref}
+\usepackage{apacite}
+\usepackage{float}
+\usepackage{csquotes}
+\usepackage{comment}
+
+%auto formatting numbers--wrap numbers in \num{} to round
+\usepackage{siunitx}
+\sisetup{round-mode = places, round-precision = 3}
+\newcommand{\nums}[1]{\num[scientific-notation = true]{#1}}
+
+
+
+%\usepackage[none]{hyphenat} % Sometimes it can be useful to turn off
+%hyphenation for purposes such as spell checking of the resulting
+%PDF.  Uncomment this block to turn off hyphenation.
+
+
+%\setlength\titlebox{4.5cm}
+% You can expand the titlebox if you need extra space
+% to show all the authors. Please do not make the titlebox
+% smaller than 4.5cm (the original size).
+%%If you do, we reserve the right to require you to change it back in
+%%the camera-ready version, which could interfere with the timely
+%%appearance of your paper in the Proceedings.
+
+\graphicspath{ {figures/} }
+
+
+\title{Cognitive cost and information gain trade off in a large-scale number guessing game}
+% Cognitive cost and information gain trade off in a large-scale number guessing game.
+% Cognitive cost and information gain trade off in 380000 number-guessing questions
+ 
+\author{{\large \bf Felix J. Binder (fbinder@ucsd.edu)} \\
+  Department of Cognitive Science, UC San Diego,\\
+  9500 Gilman Dr., La Jolla, CA 92093, USA
+  \AND {\large \bf Cameron R. Jones (c8jones@ucsd.edu)} \\
+  Department of Cognitive Science,  UC San Diego,\\
+  9500 Gilman Dr., La Jolla, CA 92093, USA
+  \AND {\large \bf Robert A. Kaufman (rokaufma@ucsd.edu)} \\
+  Department of Cognitive Science,  UC San Diego,\\
+  9500 Gilman Dr., La Jolla, CA 92093, USA
+  \AND {\large \bf Naomi T. Lin (ntlin@ucsd.edu)} \\
+  Department of Education,  UC San Diego,\\
+  9500 Gilman Dr., La Jolla, CA 92093, USA
+  \AND {\large \bf Crystal R. Poole (c1poole@ucsd.edu)} \\
+  Department of Cognitive Science,  UC San Diego,\\
+  9500 Gilman Dr., La Jolla, CA 92093, USA
+  \AND {\large \bf Edward Vul (evul@ucsd.edu)} \\
+  Department of Psychology,  UC San Diego,\\
+  9500 Gilman Dr., La Jolla, CA 92093, USA}
+
+%Binder, Cameron R Jones, Robert A Kaufman, Naomi T Lin, Crystal R Poole, Edward Vul
+
+\begin{document}
+
+\maketitle
+
+\begin{comment}
+    TODO
+    - [X] Finalize title: 
+	- [x] Finalize abstract
+	- [x] remove redundancies in intro/methods @Rob/Naomi
+	    - [x] alexa game
+	    - [x] hypotheses
+	- [x] re-check analyses @Cameron
+	- [x] analyses with 3 or 4 decimal places @Cameron
+	- [x] cut to fit 6 pages
+	- [x] place figs in sensible places
+	- [x] confirm with authors: (run by Ed)
+		- [X] authorship order 
+		- [X] name: Felix J Binder, Cameron R Jones, Robert A Kaufman, Naomi T Lin, Crystal R Poole, Edward Vul
+	- [ ] clear selections in submission form
+	- [x] figure placements @felix
+	- [X] .bib entries @Rob
+	- [x] bolstering literature <-- have we done this now? 
+    - [X] Add missing references to intro @Crystal (I think everything is referenced now)
+    - [X] Add missing references to method (arithmetic functions) @Crystal <-- let me know if I missed anything
+    - [x] Add Weber's law stuff to arithmetic section to support midpoint @Crystal, @felix
+    - [x] results less model-y @felix
+    - [x] cut to 6pg
+    - [x] fix two citations missing journals @rob
+    
+    Results
+    - [X] t stats @Cameron
+    - [X] results section writing @Cameron
+    - [X] Full model table @Cameron
+    - [X] Simulation means & sd @Cameron
+    - [X] Removed games stats
+\end{comment}
+
+
+\begin{abstract}
+How do people ask questions to zero in on a correct answer? Although we can formally define an optimal query to maximize information gain, algorithms for finding this optimal guess may impose large resource costs in space (memory) and time (computation). 
+To understand how people trade off the information gain and the computational difficulty of choosing the ideal query, we turned to a large dataset of 380,000 guesses made during a number-guessing game with Amazon Alexa.
+We analyzed whether the arithmetic difficulty of following the optimal strategy predicts how far a guess deviates from the theoretically optimal query.
+We find that when memory load is higher, and when more arithmetic operations need to be performed, human guesses deviate more from the most informative query.
+These results suggest human computational resource constraints limit how people seek out informative questions. 
+
+% We constructed measures of processing difficulty for each of the arithmetic steps assumed to comprise the binary search algorithm. We quantify the efficiency of human queries in terms of how close their expected information gain ($EIG$) was to the $EIG$ of the theoretically optimal query.
+% We find that people pose queries that achieve information gain closer to optimal when the search space is smaller. Furthermore, people are more optimal in guessing numbers for which midpoint calculation does not require carrying and borrowing in subtraction and division. 
+
+\textbf{Keywords:} 
+optimal experiment design; resource rationality; mental arithmetic; decision theory; information gain
+\end{abstract}
+
+
+\section{Introduction}
+
+In situations as wide-ranging as medical diagnosis, asking for directions, and debugging software, people must come up with good questions to reach a suitable answer \cite{coenen2019asking}.  
+However, identifying the best question to ask is a difficult computational problem, even before considering the limited cognitive resources available to humans.  
+How do people balance the need to find informative questions with the computational constraints of their cognitive resources?
+ 
+%Imagine you go to your doctor complaining about abdominal pain. Your doctor might have a range of hypotheses about what your diagnosis might be. Some tests will rule out more possible diagnoses than others; your doctor would want to choose a test that maximizes the information they would learn about your condition. To identify the best test to order, the doctor must consider not only their current beliefs about all the possible causes of the symptoms, but also the outcomes of a particular diagnostic test under each of these causes. Altogether, identifying the best test to order is a fairly difficult computational problem, even before considering the limited cognitive resources available to humans. Despite the computational challenge inherent in the task, people regularly choose  which questions to ask to gather information as effectively and efficiently as possible. How do humans balance asking the most informative question with making efficient use of their limited cognitive resources?
+
+
+Research on active learning and optimal experiment design reveals that in a wide range of circumstances, people are fairly effective at asking informative questions \cite{coenen2019asking,NelsonFindingUsefulQuestions2005,GureckisSelfDirectedLearningCognitive2012}.
+People ask informative queries when classifying unfamiliar alien creatures \cite{NelsonFindingUsefulQuestions2005}, finding battleships \cite{GureckisActiveLearningStrategies2009}, and teasing out causal models \cite{steyvers2003inferring,cook2011science} %, and classifying plankton \cite{MederInformationsearchsituationspecific2012}.
+%Throughout these cases, human queries seem to track various optimal experiment design criteria for question efficiency; however, the criterion that recurs most often is expected information gain \cite{NelsonFindingUsefulQuestions2005}. 
+Although people are sensitive to the informativeness of questions, they do not always ask the most informative questions.  
+For instance, in a battleship game, participants selected the most optimal choice with a high frequency, but still chose non-optimal spaces often \cite{GureckisActiveLearningStrategies2009}.
+What explains this deviation from optimality? 
+
+Finding the most diagnostic question can be a challenging computational problem, so it may be the case that people fail to find optimal questions because of their cognitive resource constraints \cite{coenen2019asking}.  
+%One potential answer is that human cognitive resources are limited, so the optimal answer cannot be found at times. 
+%Alternatively, the optimal question might be hard to find, and humans are not willing to invest the effort to deduce an optimal answer. 
+%In either case, we ought not expect people to attempt to optimize informativeness of questions with no other considerations. At best, they optimize, given a hard constraint on computational resources. More likely, they optimize an aggregate cost function that considers, not only informativeness of a question, but also its cognitive and computational costs \cite{CoenenAskingrightquestions2019}. 
+Cognitive psychology has documented numerous  limits  in resources including memory \cite{baddeley1997human}, central processing capacity \cite{pashler1984processing},  attention \cite{cavanagh2005tracking}, and processing speed \cite{ratcliff1998modeling}. 
+Recently, these cognitive constraints have been studied using algorithm analysis from computer science \cite{LiederResourcerationalanalysisUnderstanding2020, gershman2015computational,dasgupta2021memory}, clarifying the roles that limitations to memory (space), computational speed (time), and language (communication throughput) have had on shaping human cognition \cite{GriffithsRationalUseCognitive2015a, griffiths2020understanding}.
+%Limited cognitive resources have recently been used to explain a number of suboptimalities in human inference and decision-making through a bounded rational analysis \cite{LiederResourcerationalanalysisUnderstanding2020, gershman2015computational}.
+%Altogether, these cognitive constraints are responsible for the many impacts of task difficulty, such as slowing response times \cite{}, decreasing accuracy \cite{}, and reducing learning rates \cite{}.  
+%substantial changes in performance when tasks become more challenging,  a        fdesnd these  with increased task load shown to impact speed, accuracy, and learning (Cavanagh, 2013, Mayer & Moreno, 2003), particularly when the task lacks a supportive infrastructure (Kirsh, 2000). 
+%two central The ability to manipulate and update working memory is key to solving many types of problems and keeping track of information. Two of the main constraints on working memory are space (within working memory) and time (computation cost). 
+%In terms of space, while an exact number of items that can be held in working memory is debated, it is generally agreed upon that working memory capacity is finite (Baddeley, 2003 & 2010). As working memory requires attention to keep items active, there are also time constraints on how long an item can be held, especially when working memory load is high (Baddeley, 2003 & 2010). 
+Algorithm analysis allows researchers to incorporate resource constraints in models of cognition to postulate ``resource rational" algorithms that balance task objectives with the execution costs  \cite{LiederResourcerationalanalysisUnderstanding2020, gershman2015computational}.  
+Such bounded-rational analyses have succeeded in explaining peculiarities of human cognition in domains ranging from sentence parsing \cite{levy2009modeling} to hypothesis generation \cite{dasgupta2018remembrance}.  
+
+%costs of how identify In order to accurately model human behavior, therefore, it is crucial to take processing limits into account. Resource rationality postulates that cognitive strategies are bounded by a person's capacity for memory and computational power, and thus rational decision making relies on the allocation of these resources (Griffiths & Lieder, 2015). In this light, resource-rational analysis integrates rational models with limited cognitive constraints as an entry-point into reverse engineering the mind (Lieder & Griffiths, 2020). 
+
+Despite thorough analyses of the effect of cognitive limitations on various inference and decision-making algorithms, how these cognitive limitations apply to active learning and optimal experiment design is less clear. 
+Some analyses have indicated that people are able to maximize their information gain given what they already know; however, the relative efficiency of the posed question varies as a function of the search space \cite{GureckisActiveLearningStrategies2009}.
+Cognitive limitations might influence human active learning in at least two ways.  
+First, memory constraints mean that finding diagnostic questions in larger hypothesis spaces is harder, as it requires evaluating the diagnosticity of a question with respect to a larger set of hypotheses.
+Second, algorithms for finding the most diagnostic question might be limited by time -- some hypothesis spaces might be more conducive to efficient calculations of optimal questions.
+Although these possible influences of cognitive resources on active learning have long been evident, measuring the influences of these factors require a fairly constrained problem with well-defined cognitive constraints, and with large amounts of data.
+
+To study the role of cognitive constraints on human information seeking, we turn to a large dataset showing human performance on the relatively simple Number Guessing Game on Amazon Alexa \cite{Dobsonguessinggamemldataset2019}.
+With the number guessing game, the integer interval domain allows us to explicitly map well-studied memory and computation constraints onto the arithmetic properties of the interval underlying each guess. 
+This precision in turn allows us to measure how the efficiency of questions varies as a function of these cognitive constraints, to ask whether guesses for intervals imposing larger memory or computational costs are further from optimal.
+
+
+
+\begin{figure}[t]
+    \includegraphics[width=\linewidth]{game.png}
+    \vspace{-8mm}
+    \caption{In the number guessing game, players try to guess which number between $1$ and $100$ a computer voice assistant has chosen.  The player repeatedly queries the voice assistant with a guess and receives feedback of either \enquote{lower}, \enquote{higher} or \enquote{correct} as the answer. Each guess rules out a part of the number space, and the game ends when the player has guessed the correct number.  
+    The optimal strategy---binary search---is guaranteed to halve the interval in which the target number could lie at each guess, and will find the correct answer in at most 7 guesses.
+    }
+    \label{fig:the_game}
+    \vspace{-2mm}
+\end{figure}
+
+
+
+\section{Alexa Number Game}
+
+We used the Alexa Number Game dataset, which included 380,000 guesses across 50,000 games and 14,000 players, with date, outcome, and unique player IDs for all games. 
+In each game, the computer randomly picks an integer between 1 and 100, and players have to find that number by making sequential guesses of integers  (see figure \ref{fig:the_game}).
+After each guess, players receive feedback about whether the target number matches their guess, or---if not---whether the target is higher or lower than the guessed number.  
+Feedback constrains the plausible interval for the target, so that after guessing ``50", and receiving the feedback ``higher", the player knows that the target number is in the interval bound by 51 and 100.
+The target number can be reached in the fewest number of guesses, on average, by following a binary search strategy: guessing the midpoint of the current interval. 
+Given the configuration of the game, the binary search strategy not only yields the earliest correct answer, on average, but also maximizes the expected information gain of the query.
+
+This dataset offers several key advantages. 
+First, the size of the dataset yields fine-grained measurements of human behavior in a variety of circumstances, rather than limiting analyses to particular pre-designed conditions.
+Second, this game reflects naturalistic information-seeking by voluntary players, reflecting the behavior of motivated individuals in lifelike situations, rather than in artificial lab settings where people might make different tradeoffs between cognitive cost and performance.
+Third, the game has a simple optimal solution, yet finding that optimal solution requires a variable amount of cognitive effort, depending on the the specific interval in question.  
+Fourth, the game sets up a straight-forward distribution over the target location: it is equally likely to be any point in the interval not yet already ruled out. This allows us to assume that the players correctly represent the uncertainty at each guess, allowing us to look for sources of errors beyond incorrectly estimating the potential locations of the target. 
+Finally, the simple game structure --- restricting hypotheses to a set of integers --- allows us to use the rich literature on human cognitive limitations in integer arithmetic to define, a priori, the difficulty of information search in different circumstances.
+
+Since this dataset reflects people interacting with their smart speakers in a variety of circumstances, the dataset necessarily contains an admixture of people who do not appear to be intentionally playing the game. 
+Fortunately, the structure of the game means that completely inattentive play can be easily detected and discarded.
+The available dataset already excluded games that were not completed within 15 guesses, or that contained guesses that could not be parsed by Alexa, and we further excluded 33,442 games (176,107 guesses) that contained guesses outside the bounds of the current interval (45.8\%). We also excluded from analysis 9,459 guesses where there was only one candidate within bounds, as no information can be gained in these circumstances.
+%Since we were investigating optimality of guesses, we narrowed and cleaned the data set to those who most likely played the game somewhat reliably. 
+These exclusions left us with a data of only relatively attentive play, consisting of 12,115 players, playing 32,480 games for a total of 198,487 guesses.
+To evaluate how well people pose questions in the number guessing game, we need to quantify the efficiency of a given query, as well as the algorithmic difficulty of posing a good question in a given circumstance. The next two sections describe these measures in detail.
+
+\subsection{Relative Expected Information Gain}
+
+
+\begin{figure}[h]
+    \includegraphics[width=\linewidth]{EIG.png}
+    \vspace{-8mm}
+    \caption{How much can we expect a guess to reduce our uncertainty about the target number? The higher expected information gain ($EIG$), the more informative the guess. The distribution of $EIG$ of human players (blue) is compared to simulations of two key baselines a random guessing strategy (red) and the optimal strategy of binary search (green). On average, human guesses are less efficient than optimal, but much more diagnostic than random.
+}
+    \label{fig:EIG-histogram}
+    \vspace{-2mm}
+\end{figure}
+
+How good is a particular guess?  
+Although there is a large number of candidate criteria for optimal experimental design \cite{NelsonFindingUsefulQuestions2005, coenen2019asking}, in the case of the number game, their subtle differences are largely irrelevant.  
+We will evaluate the quality of a guess in terms of how much information one expects to gain from the answer: how much uncertainty (as measured by entropy) is expected to be reduced by getting an answer to the question posed  \cite{ShannonMathematicalTheoryCommunication1948}?  
+This "expected information gain" \cite{LindleyMeasureInformationProvided1956,FedorovTheoryoptimalexperiments1972} not only maps onto the optimal binary search strategy, but also explains human intuitions in a number of querying tasks \cite{NelsonFindingUsefulQuestions2005}.\footnotemark
+In our case, the expected information gain, for a given guess $x$ is defined as:
+
+\begin{equation}
+    EIG(x) = \mathcal{H}(a) - \sum_{b \in B} \mathcal{H}(b) p(b)
+\end{equation}
+Where $\mathcal{H}(a)$ is the entropy (in bits) associated with the current interval ($a$), so if the interval is 1 to 78, $\mathcal{H}(a) = log_2(78) = 6.28$.
+$B$ is the set of possible intervals after the feedback is received for guess $x$.  So if one were to guess $x=53$, the set of possible intervals is $B = \{[1, 52], [53,53], [54, 78]\}$.  
+We average the entropy of each of these resulting posterior intervals, weighted by their probability, $p(b) = |b|/|a|$, to obtain an expected posterior entropy of the interval: $\sum_{b \in B} \mathcal{H}(b) p(b) = 5.7(0.67) + 0(0.013) + 4.64(0.32) = 5.29$.
+The expected information gain for guess $x$ amounts to the difference between the current entropy, and the expected posterior entropy: how much the guess is expected to reduce our uncertainty. Here $EIG(x=53)=0.997$. 
+
+For the number guessing game, $EIG$ is maximized for a simple optimal strategy: binary search. Binary search entails repeatedly dividing the list of possible outcomes in half to maximally narrow the list of possibilities.  
+For example, if starting with the interval $[1, 78]$, the first guess ought to be 39 or 40, and if given the response "lower", the next guess would be 19, which bisects the "lower" possibilities ($[1, 38]$).  
+On average, idealized binary search should be able to guess the number in $\log_2(n)$ guesses, where n is the number of candidates. For this game, n=100; thus, the number of guesses required is at most 7. 
+% Unlike idealized binary search, in this number game 
+Because of the possibility of the guess being correct, the optimal guess (39 or 40 for an interval of $[1, 78]$) does not have an expected information gain of exactly 1 bit.
+Instead, in this case the optimal EIG is 1.086 bits.  
+% This discrepancy is larger for smaller intervals, so if the interval were of size 3 (e.g., $[3,5]$), the optimal EIG (for guessing 4) would be 1.58, rather than 1. 
+To evaluate the quality of a particular guess, we calculate a \textit{relative} Expected information gain by normalizing the $EIG(x)$ of the guess by the optimal $EIG^*$:  $rEIG = EIG(x) / EIG*$.
+This Relative Expected Information Gain measure asks what proportion of the maximum available information gain was realized by the participant's guess.
+
+\footnotetext{It is possible to evaluate actual information gained from each guess, conditional on the answer.  However, such a measure would only noisily reflect the quality of questions people pose.  Because, absent any clairvoyance, when people make a guess, they cannot know what answer will follow, therefore their choice of query must be made based on the expected, rather than observed, answer. }
+
+
+
+\begin{figure*}[t]
+\begin{center}
+    % (A)
+    % \includegraphics[width=0.475\textwidth]{heatmap_frequency.png}
+    % (B)
+    % \includegraphics[width=0.475\textwidth]{heatmap_reig_interval.png}
+    \includegraphics[width=0.8\textwidth]{heatmaps.png}
+\end{center}
+    \vspace{-6mm}
+    \caption{(A) Each pixel indicates the relative frequency of a particular interval the true number must be in encountered by the players. Every game starts in the top-left corner. Note the regular patterns on 10s and 5s.
+    (B) Human guess efficiency as a function of interval location. The average relative Expected Information Gain ($rEIG$)---how much information is gained relative to following the optimal strategy?---for each interval is shown.
+}
+    \label{fig:heatmap}
+    \vspace{-2mm}
+\end{figure*}
+
+\subsection{Arithmetic measures of algorithmic difficulty}
+% add carrying and borrowing as its own category sitting between the two, carry that into results
+
+In many domains, characterizing the cognitive constraints inherent in enumerating, evaluating, and searching over the hypothesis space is an open challenge. Fortunately, in the domain of numbers and arithmetic, these constraints are well documented, and each factor maps onto known cognitive limitations.
+These cognitive constraints fall into two general categories: limited space in working memory, and limited time for computations. 
+In arithmetic, the size and quantity of numbers to be kept in working memory indicate the memory demand of the calculation \cite{DEHAENE2003145}, and the number of individual operations that need to be performed indicate the time cost.
+
+In order to estimate the processing cost of calculating the optimal guess at each decision point, we make several assumptions about how the player might determine the midpoint of the interval. We assume that users store the lower and upper bounds of the interval in which the target can lie. They then calculate the interval, $I$ by subtracting the lower bound, $L$, from the upper bound, $U$. They then divide the interval by $2$ and add the quotient to the lower bound to find the midpoint of the two numbers. 
+
+%weber measure: the difference between two number is a larger proportion if the two number are small compared to when they are big. When the number are large, they need to be stored in higher fidelity to keep the relative fidelity of the difference. This requires a larger working memory load for large number, the size of the difference being equal. We know that this effect drives how people deal with quantities, some citations.
+
+We identify four features of this calculation which might index processing cost: interval size, midpoint, carrying, and number of operations.
+Both the size of the interval and the value of the mid-point place constraints on memory. As the size of the interval between the two numbers increases, the number of available hypotheses about the target number increases \cite{zbrodoff19959+}. As the magnitude of the bounds of interval increases keeping the size of the interval constant, a higher fidelity of representation is necessary to account for the change in relative proportion of size and bounds \cite{DEHAENE2003145}---the midpoint of the interval measures the magnitude of the bounds.  
+% Equally as the midpoint of the interval increases, the mean size of the values which must be represented and operated on increases. 
+The need to carry or borrow terms when calculating requires additional numbers to be kept in working memory, and increases the number of operations that need to be performed \cite{imbo2007role2}.
+Finally, we assume users break each arithmetical operation down into single digit operations (for example, $43 + 12$ is decomposed into $3 + 2$ and $4 + 1$) \cite{hitch1978role}. Some calculations will require fewer single digit operations, such as containing fewer numerical digits (e.g. $18 - 3$) or obviating the need to perform an addition in the ones-place (e.g. $17$ +  $10$), This reduces the number of operations to be performed. 
+
+We predict that when the processing cost of finding the optimal guess as indexed by these measures is high, users will avoid incurring this cost by using easier but less accurate strategies. Therefore, we predict that as processing cost increases, the optimality of guesses---as measured by $rEIG$---will decrease. In other words, how informative the chosen guess is will depond on how difficult it is to identify the optimal query. This would indicate that users' querying behavior is sensitive to cognitive effort in determining the most informative guess.
+
+\section{Results}
+
+To establish a baseline to compare the optimality of human guesses, we ran two simulations. To simulate random guessing, we generated numbers from a uniform distribution with limits at the current lower and upper bounds. For optimal guessing, we calculated the optimal guess at each decision point using binary search. Figure \ref{fig:EIG-histogram} shows the distribution of $EIG$ across guesses for each simulation and the user data.
+
+User guesses had a significantly higher $EIG$ on average (mean=\num{0.9972301}, sd=\num{0.3237455}) than would be expected if they were randomly guessing (mean=\num{0.8143959}, sd=\num{0.1641558}, $z = 30.64, p<0.001$). However, the $EIG$ of human guesses falls well short of what would be expected following the optimal strategy (mean=\num{1.224007}, sd=\num{0.2414447}; $z = 278.3, p<0.001$).
+This demonstrates that human players perform much better than chance, but much worse than optimal. Next, we examined whether the deviation from optimality can be explained by processing costs incurred during calculation of the optimal guess.
+
+\subsection{Effect of processing cost on optimality}
+
+\begin{figure}[h]
+    \begin{center}
+    \includegraphics[width=0.4\textwidth]{reig-interval.png}
+    \end{center}
+    \vspace{-6mm}
+    \caption{Relative Expected Information Gain as a function of interval size. $rEIG$ is lower when the interval is larger, with some notable exceptions at 100 (first guess), 50 and 25 (second and third guess following the optimal strategy), and 2-3 (final guess). 
+}
+    \label{fig:reig-interval}
+    \vspace{-4mm}
+\end{figure}
+
+
+An overview of the frequency and the mean $rEIG$ for each interval is shown in figure \ref{fig:heatmap}. Although some patterns are suggested in the heatmap, we aim to characterize the variation pictured, in terms of the arithmetic properties of each interval, as well as the computational difficulty it imposes on the guesser.
+
+To investigate whether the difficulty of computing the midpoint of the interval predicts the $rEIG$ of a guess, we constructed linear mixed effects models to predict $rEIG$ using our measures of arithmetic difficulty. We constructed separate linear models, which tested the effect of each measure in isolation as well as a full model with all four measures included. All models were constructed using the lmerTest R package \cite{LukeEvaluatingsignificancelinear2017} and t statistics are computed via Satterthwaite's degrees of freedom method \cite{SatterthwaiteApproximateDistributionEstimates1946,LukeEvaluatingsignificancelinear2017}. All models used the same random effects structure: random intercepts by user.
+
+There was some ambiguity about how users might update their bounds. A rational user would update their bound to exclude their most recent guess: after guessing “50” and receiving “higher” as feedback, the players would update their lower bound to 51. However, we hypothesized that many players may have stored their most recent guess itself as the bound due to its saliency. We ran a version of our full model with and without adjustment for this effect. Then, we computed the Akaike information criterion for both (AIC adjusted:  $-25407$, AIC unadjusted: $-24584$), which indicates that the adjusted model better fits the data. All reported results and figures therefore include this adjustment.
+
+\begin{table}
+\begin{center} 
+\caption{Standardized coefficients for a full model predicting rEIG from the arithmetic properties of the interval.} 
+\label{tab:full_model} 
+\vskip 0.12in
+\resizebox{0.47\textwidth}{!}{
+\begin{tabular}{l|r|r|r|r|r}
+\hline
+  & Std. Coef & Std. Error & df & t value & Pr(\>|t|)\\
+\hline
+(Intercept) & \num{0.8815731} & \num{0.0019947} & \num[round-mode = places,round-precision=1]{78194.4} & \num[round-mode = places,round-precision=1]{442} & $<0.001$ \\
+\hline
+Interval size & \num{-0.135353275} & \num{0.002244218} & \num[round-mode = places,round-precision=1]{194588.6} & \num[round-mode = places,round-precision=1]{-60.311999} & $<0.001$ \\
+\hline
+Midpoint & \num{-0.010776974} & \num{0.002583141} & \num[round-mode = places,round-precision=1]{194421.8} & \num[round-mode = places,round-precision=1]{-4.172043} & $<0.001$ \\
+\hline
+Carrying & \num{-0.077528942} & \num{0.002569779} & \num[round-mode = places,round-precision=1]{194417.4} & \num[round-mode = places,round-precision=1]{-30.169498} & $<0.001$ \\
+\hline
+No. of operations & \num{-0.002401687} & \num{0.002923186} & \num[round-mode = places,round-precision=1]{196532.3} & \num[round-mode = places,round-precision=1]{-0.821599} & $0.411$\\
+\hline
+\end{tabular}}
+\end{center}
+\vspace{-4mm}
+\end{table}
+
+\subsubsection{Interval Size}
+Larger intervals impose higher memory loads by virtue of requiring that a larger hypothesis space be kept in mind. Insofar as memory limits the efficiency of posed questions, we would expect lower $rEIG$ for larger intervals.
+Figure \ref{fig:reig-interval} confirms this effect of interval size on $rEIG$: $rEIG$ decreases with increasing interval size $t(191700.8) = -53.89, p<0.001$. 
+This effect holds in the full model (Table \ref{tab:full_model}), controlling for other arithmetic properties of the interval: $t(194588.6) = -60.312, p<0.001$. 
+Less informative guesses, from participants when there are large intervals, is consistent with the interval size imposing a working memory load. However, part of the effect is driven by poor performance at interval sizes between 50 and 100. These interval sizes can only contain data from people who had made particularly inefficient early guesses, and thus, ought to be expected to make bad guesses in the future. However, this adverse selection process is not responsible for this effect, for even when we consider only interval sizes less than 50, the negative linear trend still holds ($t(120963.54)=-13.02842, p<0.001$).
+
+\subsubsection{Midpoint}
+The magnitude of numbers is known to cause delays in processing during mental arithmetic \cite{DEHAENE2003145}, consistent with a role for the approximate number system in such calculations.
+If the approximate number system influences the efficiency of search, we would expect intervals bounded by larger numbers to yield less efficient guesses.  
+% This effect may be partly explained by the results of operations on smaller numbers being more familiar, so they can be retrieved from memory rather than calculated each time (cite).
+The midpoint of the upper and lower bounds indexes the mean magnitude of both bounds and is orthogonal to interval size.
+Therefore, as the midpoint increases we expect the cost of calculating the optimal guess to increase and therefore $rEIG$ of each guess to decrease. A linear model confirms this negative effect ($t(191472.5) = -11.93, p<0.001$). This effect holds in the full model, controlling for other predictors ($t(194421.8) = -4.17, p<0.001$), including interval size.
+
+\subsubsection{Carrying}
+When doing multi-digit arithmetic, carrying across decimal places requires one to temporarily store additional pieces of information and perform additional operations on an internal representation of the number. Carrying thereby imposes costs both in terms of memory and the time needed to perform a calculation \cite{imbo2007role2}. We therefore expect users performance to decrease as the number of required carry operations increases.
+A linear model confirms this effect ($t(195207.03) = -17.52, p<0.001$). The marginal effect of carrying remains even when controlling for other factors including midpoint, and thus the overall size of the numbers in play ($t(194417.4) = -30.17, p<0.001$), .
+
+\subsubsection{Number of Operations}
+Finally, the total number of arithmetic operations involved in finding the midpoint is expected to decrease efficiency. Indeed, we found an effect when marginalizing over all other variables in $rEIG$ $t(198070.66) = -2.698, p=0.006$. 
+However, the effect is not robust to controlling for the effect of other factors, in the full model it is attenuated and no longer significant ($t(196532.3) = -0.822, p=0.41$).  
+This likely reflects that the negative marginal effect above arises from correlations with factors such as interval size, midpoint, and the number of carry operations. 
+
+\begin{figure}[h]
+\begin{center}
+    \includegraphics[width=0.4\textwidth]{reig-meanBound.png}
+\end{center}
+    \vspace{-6mm}
+    \caption{$rEIG$ as a function of the magnitude of the interval midpoint. rEIG decreases as midpoint increases ($r = \num{-0.02646703}$).
+}
+    \label{fig:reig-meanbound}
+\vspace{-2mm}
+\end{figure}
+
+
+\section{Discussion}
+% We asked whether cognitive constraints limit how efficiently people can ask informative questions.
+% We have a clear idea of the probability distribution in the player’s head after each query, and thus the optimality of guesses can be assessed with differences in computational difficulty to mark trades with information gained. If we find that people deviate more from the optimal query when identifying it as more challenging, then this indicates that people indeed trade off informativeness and cognitive ease. 
+We found that the efficiency of questions posed by humans, compared to the optimal question, varies systematically as a function of the magnitude and arithmetic properties of the current interval. People were less efficient when faced with larger intervals, intervals comprised of bigger numbers, and intervals requiring more elaborate arithmetic operations. 
+Together, these results highlight the role of cognitive limitations and processing constraints in shaping human information search. Understanding how people trade off cognitive ease with their effectiveness in gathering information is crucial to explaining how people can efficiently make sense of an uncertain world. 
+
+%immediate results in the two hypotheses, individual predictors ( a bit), then this confirms resource rational ....
+
+% division carrying might have been a good predictor for difficulty, but it's not. we never assumed that people do long division anyway
+%We found strong support for the hypothesis that cognitive constraints on working memory predict the optimality of information gather behavior. Likewise, we also found that the more operations are necessary to calculate the optimal guess, the lower the optimality of players guesses was.
+% show that mundane constraints on human computational abilities interact with  information gathering behavior.
+The finding that the midpoint of the interval predicts reduction in $rEIG$ independent of the size of the interval hints at an additional hypothesis on mental arithmetic: that certain computations are not actually computed, but merely retrieved, or estimated from the approximate number system \cite{dehaene2011number, zbrodoff19959+}. 
+% In motivating the choice of predictors above, we were guided by the assumption that players calculate the midpoint of the interval. However, people can simply retrieve the results for certain common calculations, which is more likely for calculations with smaller numbers, as well as certain salient examples like $100 \div 2$. 
+% While not conclusive, our results suggest that people take not only external cost, but also cognitive effort, into account when choosing which information to gather.
+
+These findings should not be taken to suggest that players are incapable of the simple operations needed to calculate the optimal guess: it is to be expected that given sufficient time and motivation, most players would be able to solve the calculation required to find the optimal guess. 
+Rather, these results indicate that people trade off information gain and cognitive effort. Because the queries were undertaken in a game rather than an explicit study that rewards people for their participation, the reduction in optimality shows how people weigh information gain against effort in play, absent external reward.
+As such, this finding hints not at absolute limitations of human cognition, but rather at the weighing priorities and effort: people choose to accept less information gained per guess when the alternative is to expend significant cognitive effort. 
+As there is no cost associated with multiple guesses, performing multiple less-than-optimally informative guesses can be a rational strategy when determining the optimal query is time consuming. Without information on how long each guess took, this hypothesis is hard to confirm. 
+% While much has been said about the ultimate purpose of play, it is clear that the intrinsic goals of play (guessing the correct number) are always weighed against the enjoyment of the player.
+
+In sum, our paper presents a novel source of evidence for the claim that information gathering behavior is guided by cognitive effort. This connects fundamental measures of information to the human cognitive limitations and suggests that humans balance the cost and gain of gathering information. 
+
+\bibliographystyle{apacite}
+
+\setlength{\bibleftmargin}{.125in}
+\setlength{\bibindent}{-\bibleftmargin}
+
+\typeout{} 
+\bibliography{references}
+
+
+\end{document}

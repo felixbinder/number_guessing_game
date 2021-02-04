@@ -282,17 +282,17 @@ summary(m.adj)
 [I tried running a model with random slopes for ~45 mins and no result. I will leave it going overnight].
 
 ```{r}
-
-
-m.adj.slopes = lmer(EIG.relative ~ interval + lowerBound.adj + lb.mod10.0 + lb.lt.10 +
-                            sub.borrow + sub.tens.eq + interval.odd + interval.tens.odd +
-                            add.carry + j.lt.10 + j.mod10.0 +
-               (1 + interval + lowerBound + lb.mod10.0 + lb.lt.10 +
-                sub.borrow + sub.tens.eq + interval.odd + interval.tens.odd +
-                add.carry + j.lt.10 + j.mod10.0 | user),
-             data=guesses.adj, REML = F)
-
-summary(m.adj.slopes)
+# 
+# 
+# m.adj.slopes = lmer(EIG.relative ~ interval + lowerBound.adj + lb.mod10.0 + lb.lt.10 +
+#                             sub.borrow + sub.tens.eq + interval.odd + interval.tens.odd +
+#                             add.carry + j.lt.10 + j.mod10.0 +
+#                (1 + interval + lowerBound + lb.mod10.0 + lb.lt.10 +
+#                 sub.borrow + sub.tens.eq + interval.odd + interval.tens.odd +
+#                 add.carry + j.lt.10 + j.mod10.0 | user),
+#              data=guesses.adj, REML = F)
+# 
+# summary(m.adj.slopes)
 
 ```
 
@@ -421,7 +421,7 @@ In a heatmap of no. guesses by bounds, we can see more guesses are made from bou
 
 ```{r}
 
-guesses.bounds <- guesses.adj %>%
+plot = guesses.bounds <- guesses.adj %>%
   group_by(lowerBound.adj, upperBound.adj) %>%
   summarise(n = n(),
             EIG.relative = mean(EIG.relative),
@@ -433,29 +433,37 @@ guesses.bounds %>%
   geom_raster() + 
   theme_minimal() + 
   labs(
-    title = "Frequency of intervals",
-    fill='Frequency (log)'
+    # title = "Frequency of intervals",
+    fill='Frequency\n(log)'
   )+
   xlab("Lower bound")+
-  ylab("Upper bound")
+  ylab("Upper bound")+
+    theme(text = element_text(size = 18),aspect.ratio = 1)
 
+ggsave("img/heatmap_frequency.png",plot,device="png",dpi=320)
+
+plot
 ```
 
 My main takeaway from this is that poor guesses are concentrated in this 'inner triangle' where the interval is relatively high. This could be partly because high intervals are harder and partly because getting yourself into a situation where (1,98) are your bounds requires being a non-rational user
 
 ```{r}
 
-guesses.bounds %>%
+plot = guesses.bounds %>%
   ggplot(aes(x = lowerBound.adj, y = upperBound.adj, fill = EIG.relative)) +
   geom_raster() + 
   theme_minimal() + 
   scale_fill_distiller(palette="RdYlGn", direction = 1) +
   labs(
-    title = "rEIG per interval",
+    # title = "rEIG per interval",
     fill='rEIG'
   )+
   xlab("Lower bound")+
-  ylab("Upper bound")
+  ylab("Upper bound")+
+theme(text = element_text(size = 20),aspect.ratio = 1)
+ggsave("img/heatmap_reig_interval.png",plot,device="png",dpi=320)
+
+plot
 ```
 
 Alternate view with lower bound and interval.
