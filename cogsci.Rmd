@@ -97,6 +97,27 @@ summary(m.adj)
 
 ```
 
+```{r}
+
+sds = c(1, sd(guesses.adj$interval), sd(guesses.adj$meanBound), sd(guesses.adj$carries), sd(guesses.adj$ops))
+
+sds = sds / sd(guesses.adj$EIG.relative)
+
+sds[1] = 1
+coefs = summary(m.adj)$coef
+coefs[,1] = coefs[,1] * sds
+coefs[,2] = coefs[,2] * sds
+
+coefs
+```
+
+```{r}
+
+library(tidyverse)
+
+summary(m.adj) %>% coef() %>% as.data.frame %>% kable(format = 'latex')
+
+```
 
 # Interval size
 
@@ -152,6 +173,17 @@ m.interval = lmer(EIG.relative ~ interval + (1 | user),
 
 summary(m.interval)
 
+
+# Interval gt50 model
+m.interval.gt50 = lmer(EIG.relative ~ interval + (1 | user),
+             data=guesses.adj %>% filter(interval < 50), REML = F)
+
+summary(m.interval.gt50)
+coef(summary(m.interval.gt50))
+```
+
+```{r}
+summary(m.interval)$coef[,3]
 ```
 
 ## Mean bound size
@@ -159,21 +191,24 @@ summary(m.interval)
 ```{r}
 
 p.meanBound <- guesses.adj %>%
+  group_by(meanBound) %>%
+  summarise(EIG.relative = mean(EIG.relative)) %>%
   ggplot(aes(meanBound, EIG.relative)) + 
-  stat_summary(fun = "mean", geom = "point", color = "#444444") + 
+  stat_summary(fun = "mean", geom = "point", color = "#444444", size=1.5) + 
   geom_smooth(method = "lm", formula = "y ~ x", se = T,
-              color="#FF0022") + 
+              color="#FF0022", size=1.5) + 
   theme_minimal() + 
   labs(
     y = "rEIG",
-    x = "Mean Bound Size"
+    x = "Midpoint"
   ) + 
   theme(
+    panel.grid.minor = element_line(size = 0.5),
+    panel.grid.major = element_line(size = 1),
       # Text
-    axis.title.x = element_text(size=18, margin = margin(t = 10, r = 0, b = 0, l = 0)),
-    axis.title.y = element_text(size=18, margin = margin(t = 0, r = 10, b = 0, l = 0)),
-    strip.text = element_text(size=14),
-    axis.text = element_text(size=12)
+    axis.title.x = element_text(size=22, margin = margin(t = 10, r = 0, b = 0, l = 0)),
+    axis.title.y = element_text(size=22, margin = margin(t = 0, r = 10, b = 0, l = 0)),
+    axis.text = element_text(size=15)
 )
 
 p.meanBound
@@ -187,6 +222,14 @@ m.mb = lmer(EIG.relative ~ meanBound + (1 | user),
              data=guesses.adj, REML = F)
 
 summary(m.mb)
+
+summary(m.mb)$coef[2,3]
+
+
+```
+
+```{r}
+ggsave("reig-meanBound.png", p.meanBound, bg = "transparent", width=7, height=5)
 
 ```
 
@@ -219,6 +262,7 @@ p.carry <- guesses.adj %>%
 p.carry
 
 ```
+
 ```{r}
 ggsave("reig-carry.png", p.carry, bg = "transparent", width=7, height=5)
 ```
@@ -233,6 +277,10 @@ summary(m.carry)
 
 ```
 
+```{r}
+summary(m.carry)$coef[,3]
+
+```
 
 ## Operations
 
@@ -254,7 +302,7 @@ guesses.adj %>%
 
 ```{r}
 
-# Carry model
+# Ops model
 m.ops = lmer(EIG.relative ~ ops + (1 | user),
              data=guesses.adj, REML = F)
 
@@ -262,6 +310,10 @@ summary(m.ops)
 
 ```
 
+```{r}
+summary(m.ops)$coef[,3]
+
+```
 
 # Testing
 
@@ -282,9 +334,24 @@ guesses.adj <- guesses.adj %>%
 
 ```{r}
 
+mean(guesses.adj$EIG)
+mean(guesses.adj$EIG.optimal)
+mean(guesses.adj$EIG.relative)
+
+sd(guesses.adj$EIG)
+sd(guesses.adj$EIG.optimal)
+sd(guesses.adj$EIG.relative)
+
+length(unique(guesses.adj$user))
+length(unique(guesses.adj$gameId))
+nrow(guesses.adj)
+```
+
+```{r}
+
 guesses.adj %>%
-  select(upperBound, lowerBound, guess, optimalGuess, random.guess, EIG.optimal, EIG, EIG.random) %>%
-  summary()
+  select(EIG, EIG.optimal, EIG.random) %>%
+  summarize(across(everything(), sd))
 
 ```
 
