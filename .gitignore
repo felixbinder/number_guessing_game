@@ -42,7 +42,7 @@ vignettes/*.pdf
 #R Projects
 *.Rproj
 *.pdf
-.DS_Store
+*.DS_Store
 
 *.csv
 
