@@ -2,8 +2,14 @@
 title: "cogsci"
 author: "Cameron Jones"
 date: "02/02/2021"
-output: html_document
+output:
+  html_document:
+    highlight: kate
+    theme: flatly
+    toc: yes
+    toc_float: yes
 ---
+
 # Setup
 
 ```{r}
@@ -14,9 +20,10 @@ library(tidyverse)
 library(RColorBrewer)
 library(knitr)
 library(lmerTest)
+library(BSDA)
 
-# Load data from data processing 
-guesses <- read.csv('data/guesses_processed.csv')
+# Load data (and preprocess if this hasn't already been done).
+source("read_data.R")
 
 # Create color palette
 paired <- brewer.pal(6, "Paired")
@@ -26,9 +33,61 @@ color3 <- paired[3]
 
 color.binary = "green"
 color.random = "red"
+color.human = "blue"
+
 ```
 
+# Cost Measures
+
+Calculate
+
+1) Interval size
+2) Midpoint
+3) No. borrows & carries
+4) No. Operations
+
 ```{r}
+
+guesses <- guesses %>%
+  mutate(
+
+    # Size measures
+    interval = upperBound - lowerBound,
+    meanBound = (upperBound + lowerBound) / 2,
+  
+    # Subtraction measures
+    interval = upperBound - lowerBound,
+    lb.mod10.0 = lowerBound %% 10 == 0,
+    lb.lt.10 = lowerBound < 10,
+    sub.borrow = (upperBound %% 10) < (lowerBound %% 10),
+    sub.tens.eq = (upperBound %/% 10) == (lowerBound %/% 10),
+  
+    # Division measures
+    interval.odd = (interval %% 2 == 1),
+    interval.tens.odd = ((interval %/% 10) %% 2) == 1,
+    interval.lt.10 = interval < 10,
+  
+    # Addition measures
+    J = interval / 2,
+    add.carry = ((J %% 10) + (lowerBound %% 10)) >= 10,
+    j.lt.10 = J < 10,
+    j.mod10.0 = (J %% 10) == 0
+  ) %>%
+  rowwise() %>%
+  mutate(
+    # Wrapped measures
+    carries = sum(sub.borrow, add.carry, interval.odd, interval.tens.odd),
+    ops = (1 - lb.lt.10) + (1 - lb.mod10.0)  + # Subtraction
+      (1 - interval.lt.10) + 1 + # Division
+      (1 - (j.lt.10 | lb.lt.10)) + (1 - (j.mod10.0 | lb.mod10.0))
+  )
+  
+```
+
+Calculate the same measures under the assumption users update their bounds "lazily". I.e. When they guess 50 and get feedback "higher", they update their lower bound to 50 rather than 51.
+
+```{r}
+
 # Same calculations with adjusted bounds
 guesses.adj <- guesses %>%
   mutate(
@@ -70,32 +129,239 @@ guesses.adj <- guesses %>%
     ops = (1 - lb.lt.10) + (1 - lb.mod10.0)  + # Subtraction
       (1 - interval.lt.10) + 1 + # Division
       (1 - (j.lt.10 | lb.lt.10)) + (1 - (j.mod10.0 | lb.mod10.0))
-    # ops = 6 + sum((-2 * lb.mod10.0), (-2 * lb.lt.10), -j.lt.10, -j.mod10.0, -interval.lt.10)
   )
 
 ```
 
+## Test lazy updating hypothesis
+
+Compare the AIC of full models constructed on the raw data vs the data after adjusting for lazy updating.
+
 ```{r}
 
-guesses.adj %>%
-  filter(ops == 1) %>%
-  select(upperBound.adj, lowerBound.adj, ops)
+# Raw data
+
+m.all = lmer(EIG.relative ~ interval + interval + meanBound + carries + ops + (1 | user),
+             data=guesses, REML = F)
+summary(m.all)
 
 ```
 
-# Full Model
-
 ```{r}
 
-# Adjusted model
+# Lazy updating adjusted
 
-# Full model
 m.adj = lmer(EIG.relative ~ interval + interval + meanBound + carries + ops + (1 | user),
              data=guesses.adj, REML = F)
 
 summary(m.adj)
 
 ```
+
+AIC of the model run on the adjusted data is lower, therefore we assume that users *do* update bounds lazily and use the adjusted dataset for the rest of our analyses.
+
+```{r}
+
+AIC(m.all)
+
+AIC(m.adj)
+```
+
+
+# Simulated Data
+
+## Summary stats
+
+Find mean and sd of EIG for real and simulated datasets
+
+```{r}
+
+mean(guesses.adj$EIG)
+mean(guesses.binary$EIG)
+mean(guesses.random$EIG)
+
+```
+
+```{r}
+
+sd(guesses.adj$EIG)
+sd(guesses.binary$EIG)
+sd(guesses.random$EIG)
+
+```
+
+## Z-tests
+
+We test whether random and optimal guessing are significantly different from human guesses.
+
+### Random guessing
+
+```{r}
+
+z.test(guesses.adj$EIG, guesses.adj$EIG.random, sigma.x = sd(guesses.adj$EIG), sigma.y=sd(guesses.adj$EIG.random))
+
+# z.test(guesses.adj$EIG, guesses.random$EIG, sigma.x = sd(guesses.adj$EIG), sigma.y=sd(guesses.random$EIG))
+
+```
+
+### Optimal Guessing
+```{r}
+
+z.test(guesses.adj$EIG, guesses.adj$EIG.optimal, sigma.x = sd(guesses.adj$EIG), sigma.y=sd(guesses.adj$EIG.optimal))
+
+# z.test(guesses.adj$EIG, guesses.random$EIG, sigma.x = sd(guesses.adj$EIG), sigma.y=sd(guesses.random$EIG))
+
+```
+
+
+## Plot EIG between datasets
+
+We group EIG by (simulated) user and plot the distribition of mean EIG for each user, split by dataset.
+
+```{r}
+
+# Create df of human users
+users <- guesses.adj %>%
+  group_by(user) %>%
+  summarise(
+    EIG = mean(EIG),
+    EIG.relative = mean(EIG.relative)
+  )
+
+# Create users for simulated optimal data
+games.binary <- guesses.binary %>%
+  group_by(gameId) %>%
+  summarise(
+    EIG = mean(EIG),
+    EIG.relative = mean(EIG.relative)
+  )
+
+# Sample from real user distribition
+games.binary$user <- sample(games$user, nrow(games.binary), replace = T)
+users.binary <- games.binary %>%
+  group_by(user) %>%
+  summarise(
+    EIG = mean(EIG),
+    EIG.relative = mean(EIG.relative)
+  )
+
+# Create users for random simulated data
+games.random <- guesses.random %>%
+  group_by(gameId) %>%
+  summarise(
+    EIG = mean(EIG),
+    EIG.relative = mean(EIG.relative)
+  )
+
+# Sample from real user distribition
+games.random$user <- sample(games$user, nrow(games.random), replace = T)
+users.random <- games.random %>%
+  group_by(user) %>%
+  summarise(
+    EIG = mean(EIG),
+    EIG.relative = mean(EIG.relative)
+  )
+
+# Create df with real, random, and binary users
+
+users$dataset = "Human Guesses"
+users.binary$dataset = "Optimal Strategy"
+users.random$dataset = "Random"
+
+all.users <-rbind(users.binary, users.random, users %>% select(user, EIG, EIG.relative, dataset))
+
+
+```
+
+
+```{r}
+
+
+all.users %>%
+  mutate(
+    dataset = factor(dataset,
+                     levels = c("Random", "Human Guesses", "Optimal Strategy"))
+    ) %>%
+  ggplot(aes(x = EIG, fill=dataset)) + 
+  geom_density(alpha=0.7, size=0.5, color="#00000000") +
+  theme_minimal() +
+  xlim(0, 1.5) +
+  scale_fill_brewer(palette="Set1") +
+  scale_color_brewer(palette="Set1") +
+  labs(
+    title="Distribution of Expected Information Gain",
+    x = "Expected Information Gain",
+    y = "Density",
+    color="Dataset",
+    fill="Dataset"
+  )
+
+```
+# Heatmap Visualizations
+
+These are the visualizations used in Figure 3
+
+Figure 3A: Frequency of guesses by upper and lower bounds.
+
+```{r}
+
+guesses.bounds <- guesses.adj %>%
+  group_by(lowerBound.adj, upperBound.adj) %>%
+  summarise(n = n(),
+            EIG.relative = mean(EIG.relative),
+            .groups="drop")
+
+
+guesses.bounds %>%
+  ggplot(aes(x = lowerBound.adj, y = upperBound.adj, fill = log10(n))) +
+  geom_raster() + 
+  theme_minimal() + 
+  labs(
+    # title = "Frequency of intervals",
+    fill='Frequency\n(log)'
+  )+
+  xlab("Lower bound")+
+  ylab("Upper bound")+
+    theme(text = element_text(size = 18),aspect.ratio = 1)
+
+```
+
+Figure 3B: rEIG by upper and lower bound.
+
+```{r}
+
+guesses.bounds %>%
+  ggplot(aes(x = lowerBound.adj, y = upperBound.adj, fill = EIG.relative)) +
+  geom_raster() + 
+  theme_minimal() + 
+  scale_fill_distiller(palette="RdYlGn", direction = 1) +
+  labs(
+    # title = "rEIG per interval",
+    fill='rEIG'
+  )+
+  xlab("Lower bound")+
+  ylab("Upper bound")+
+theme(text = element_text(size = 20),aspect.ratio = 1)
+
+```
+
+
+
+
+# Full Model
+
+Here we run LMEMs to measure the effects of each of the cost measures.
+
+We use the full adjusted model above to measure the marginal effect of each measure when controlling for the others.
+
+```{r}
+
+# Full model
+summary(m.adj)
+
+```
+
+Below are the coefficients used in Table 1. We standardize the coefficients and standard error.
 
 ```{r}
 
@@ -111,19 +377,12 @@ coefs[,2] = coefs[,2] * sds
 coefs
 ```
 
-```{r}
-
-library(tidyverse)
-
-summary(m.adj) %>% coef() %>% as.data.frame %>% kable(format = 'latex')
-
-```
 
 # Interval size
 
 REIG tends to lower as interval size increases. With a few expected exceptions at 25, 50, 100. In general this fits with the hypothesis that it's harder to do the optimal calculation for high intervals.
 
-Below we see the effect of interval on REIG.
+Below we plot the effect of interval on REIG.
 
 ```{r}
 
@@ -159,34 +418,43 @@ p.interval
 
 ```{r}
 
-ggsave("reig-interval.png", p.interval, bg = "transparent", width=7, height=5)
+# Save figure
+
+# ggsave("reig-interval.png", p.interval, bg = "transparent", width=7, height=5)
 
 ```
 
+A linear model confirms the negative effect of interval size on rEIG.
 
 ```{r}
 
-
-# Interval modek
+# Interval model
 m.interval = lmer(EIG.relative ~ interval + (1 | user),
              data=guesses.adj, REML = F)
 
 summary(m.interval)
 
+# Get exact df
+summary(m.interval)$coef[,3]
+
+```
+
+This result holds where interval size is <50 (rejecting an adverse selection effect explanation).
+
+```{r}
 
 # Interval gt50 model
 m.interval.gt50 = lmer(EIG.relative ~ interval + (1 | user),
              data=guesses.adj %>% filter(interval < 50), REML = F)
 
 summary(m.interval.gt50)
+
 coef(summary(m.interval.gt50))
 ```
 
-```{r}
-summary(m.interval)$coef[,3]
-```
+# Mean bound size
 
-## Mean bound size
+Visualization of rEIG vs mean bound size.
 
 ```{r}
 
@@ -215,6 +483,8 @@ p.meanBound
 
 ```
 
+LMEM shows a negative effect.
+
 ```{r}
 
 # Mean Bound model
@@ -223,19 +493,22 @@ m.mb = lmer(EIG.relative ~ meanBound + (1 | user),
 
 summary(m.mb)
 
+# get df
 summary(m.mb)$coef[2,3]
 
 
 ```
 
 ```{r}
-ggsave("reig-meanBound.png", p.meanBound, bg = "transparent", width=7, height=5)
+# ggsave("reig-meanBound.png", p.meanBound, bg = "transparent", width=7, height=5)
 
 ```
 
 
 
-## Carries & Borrows
+# Carries & Borrows
+
+Plot of rEIG vs carries.
 
 ```{r}
 
@@ -264,8 +537,10 @@ p.carry
 ```
 
 ```{r}
-ggsave("reig-carry.png", p.carry, bg = "transparent", width=7, height=5)
+# ggsave("reig-carry.png", p.carry, bg = "transparent", width=7, height=5)
 ```
+
+LMEM shows negative effect.
 
 ```{r}
 
@@ -282,7 +557,9 @@ summary(m.carry)$coef[,3]
 
 ```
 
-## Operations
+# Operations
+
+Plot rEIG vs no. operations.
 
 ```{r}
 
@@ -299,6 +576,7 @@ guesses.adj %>%
   )
 
 ```
+Model shows this is a significant negative effect. However, the effect does not hold in the full model (above).
 
 ```{r}
 
@@ -311,163 +589,11 @@ summary(m.ops)
 ```
 
 ```{r}
+
+#df
 summary(m.ops)$coef[,3]
 
 ```
 
-# Testing
 
 
-```{r}
-
-source("analysis/get_EIG.R")
-
-guesses.adj <- guesses.adj %>%
-  mutate(
-    random.guess = round(runif(1, lowerBound, upperBound)),
-    EIG.random = get_EIG(lowerBound, upperBound, random.guess)
-  )
-
-
-
-```
-
-```{r}
-
-mean(guesses.adj$EIG)
-mean(guesses.adj$EIG.optimal)
-mean(guesses.adj$EIG.relative)
-
-sd(guesses.adj$EIG)
-sd(guesses.adj$EIG.optimal)
-sd(guesses.adj$EIG.relative)
-
-length(unique(guesses.adj$user))
-length(unique(guesses.adj$gameId))
-nrow(guesses.adj)
-```
-
-```{r}
-
-guesses.adj %>%
-  select(EIG, EIG.optimal, EIG.random) %>%
-  summarize(across(everything(), sd))
-
-```
-
-```{r}
-# 
-# users <- guesses.adj %>%
-#   group_by(user) %>%
-#   summarise(
-#     EIG = mean(EIG),
-#     EIG.relative = mean(EIG.relative)
-#   )
-# 
-# p.eig.user.random <- users %>%
-#   ggplot(aes(x = EIG)) + 
-#   geom_density(data = users.random,
-#                color=color.random, fill=color.random, alpha=0.5, size=0.5) +
-#   # geom_density(data = users.binary,
-#                # color=color.binary, fill=color.binary, alpha=0.5, size=0.5) +
-#   # geom_density(color=color.human, fill = color.human, alpha=0.8, size=0.5) +
-#   theme_minimal() +
-#   labs(
-#     x = "Expected Information Gain",
-#     y = "Density"
-#   ) + 
-#   xlim(0, 1.5) +
-#   ylim(0, 7) +
-#   theme(
-#     panel.background = element_rect(fill = "transparent",colour = NA),
-#     plot.background = element_rect(fill = "transparent",colour = NA),
-#     panel.grid = element_blank(),
-#     axis.title.y = element_blank(),
-#     axis.text.y = element_blank(),
-#     axis.text = element_text(color = "black"),
-#     text = element_text(color = "black", size=20)
-#   )
-
-```
-
-## Random
-```{r}
-
-df.random = guesses.adj %>%
-  pivot_longer(cols=c(EIG, EIG.random))
-
-m.random = lm(value ~ name, data=df.random)
-
-summary(m.random)
-
-anova(m.random)
-
-```
-
-
-## Random
-```{r}
-
-df.optimal = guesses.adj %>%
-  pivot_longer(cols=c(EIG, EIG.optimal))
-
-m.optimal = lm(value ~ name, data=df.optimal)
-
-summary(m.optimal)
-
-anova(m.optimal)
-
-```
-
-
-# Adjustment
-
-```{r}
-guesses <- guesses %>%
-  mutate(
-    REIG.inv = 1 - EIG.relative,
-    
-    meanBound = (lowerBound + upperBound) / 2,
-  
-    # Subtraction measures
-    interval = upperBound - lowerBound,
-    lb.mod10.0 = lowerBound %% 10 == 0,
-    lb.lt.10 = lowerBound < 10,
-    sub.borrow = (upperBound %% 10) < (lowerBound %% 10),
-    sub.tens.eq = (upperBound %/% 10) == (lowerBound %/% 10),
-  
-    # Division measures
-    interval.odd = (interval %% 2 == 1),
-    interval.tens.odd = ((interval %/% 10) %% 2) == 1,
-    interval.lt.10 = interval < 10,
-  
-    # Addition measures
-    J = interval / 2,
-    add.carry = ((J %% 10) + (lowerBound %% 10)) >= 10,
-    j.lt.10 = J < 10,
-    j.mod10.0 = (J %% 10) == 0
-  ) %>%
-  rowwise() %>%
-  mutate(
-    # Wrapped measures
-    carries = sum(sub.borrow, add.carry, interval.odd, interval.tens.odd),
-    ops = (1 - lb.lt.10) + (1 - lb.mod10.0)  + # Subtraction
-      (1 - interval.lt.10) + 1 + # Division
-      (1 - (j.lt.10 | lb.lt.10)) + (1 - (j.mod10.0 | lb.mod10.0))
-    # ops = 6 + sum((-2 * lb.mod10.0), (-2 * lb.lt.10), -j.lt.10, -j.mod10.0, -interval.lt.10)
-  )
-  
-
-
-m.all = lmer(EIG.relative ~ interval + interval + meanBound + carries + ops + (1 | user),
-             data=guesses, REML = F)
-
-summary(m.all)
-
-
-```
-
-```{r}
-AIC(m.all)
-AIC(m.adj)
-```
