@@ -12,6 +12,8 @@ output:
 
 # Setup
 
+Load libraries and create useful variables
+
 ```{r}
 
 # Load libraries
@@ -21,9 +23,6 @@ library(RColorBrewer)
 library(knitr)
 library(lmerTest)
 library(BSDA)
-
-# Load data (and preprocess if this hasn't already been done).
-source("read_data.R")
 
 # Create color palette
 paired <- brewer.pal(6, "Paired")
@@ -37,14 +36,80 @@ color.human = "blue"
 
 ```
 
+# Data
+
+Here we load the datasets (or preprocess them using `process_data.R` if they haven't already been generated).
+
+```{r}
+
+# Load data (and preprocess if this hasn't already been done).
+source("read_data.R")
+
+```
+
+The dataset comes from a number guessing game running on Amazon Alexa. Users play a game with the voice assistant where the game randomly chooses a number between 1 to 100 and the user tries to guess the number. After a guess, the user is told whether their guess was too low or too high. The dataset includes 380,000 guesses across 50,000 games and 14,000 players. The dataset was sourced from [kaggle](https://www.kaggle.com/sdobson46/higher-or-lower-game). The dataset includes unique player IDs for all games as well as the date of the game and the outcome of the game. The dataset also allows for analysis of a player’s first game and information about whether the player returned to play more games. This dataset only includes completed games with no more than 15 guesses. The dataset excludes all guesses that Alexa did not understand or were invalid because they were not in the 1 to 100 number range. The dataset includes repeated guesses and guesses that conflict with previous hints provided by Alexa.
+
+## Games
+
+Dataframe `games` from `games.csv` file on kaggle.
+
+* 1 row per game played
+* 50881 rows total
+* 22 columns:
+  * `gameId` (factor w/ 50881 levels): Unique identifier for each game
+  * `user` (int): Unique identifier for each player
+  * `startTime` and `finishTime` (POSIX datetime): start and finish times of games.
+  * `duration` (int): Duration of game in seconds.
+  * `targetNum` (int): The randomly selected number between 1-100 that the player needs to guess
+  * `numGuesses` (int): Number of guesses the player needed to guess the target number
+  * `guess1` - `guess15` (int): The numbers which the user guessed.
+  
+  
+## Guesses
+
+We pivot the data longer so that each guess is on a new row. We remove any rows which contain unused guesses (i.e. NA). We also create a variety of variables to measure the *effectiveness* of each guess in different ways (i.e. how much does the guess reduce uncertainty about the target number)? We filter out guesses which are out of bounds.
+
+We then have a second dataframe `guesses`, with:
+  
+* One row per guess made.
+* 198487 rows total
+
+We create the following variables:
+
+* `response` (factor w/ 3 levels): Whether targetNum is "lower" or "higher" than the guess, or "correct".
+* `lowerBound` and `upperBound` (int): Minimum and maximum possible values for `targetNum` given previous guesses.
+* `numAvailable` (int): The number of possible options within bounds.
+* `prob` (num): The probability of randomly choosing `targetNum` from guesses within bounds [0,1].
+* `entropy` (num): The level of uncertainty of `targetNum` given bounds (`-1 * numAvailable * prob * log(prob)`).
+* `infoGain` (num): The reduction in `entropy` from `guess`.
+* `optimalGuess` (int): The optimal guess based on binary search.
+* `outOfBounds` (int): Whether the guess is within (0) or outwith (1) bounds.
+* `numExcluded` (int): The number of potential choices ruled out by the `guess`.
+* `propExcluded` (num): The proportion of potential choices ruled out by `guess`.
+
+## Simulated Data
+
+We also generate two datasets of simulated data: `guesses.binary` (which assumes all users follow the optimal binary search strategy) and `guesses.random` which assumes users guess randomly. The code to generate this data can be found in the `models/` subdirectory.
+
+
 # Cost Measures
 
-Calculate
+We can characterize the optimal search strategy as an algorithm which attempts to find *M*, the mid-point between the upper bound (*U*) and the lower bound (*L*). This can be broken down into three arithmetical operations:
 
-1) Interval size
-2) Midpoint
+1. *I = U - L*
+2. *J = I / 2*
+3. *M = L + I*
+
+where *I* is the interval between *U* and *L*, and *J* is half of this interval.
+
+We constructed measures of processing difficulty for each of the arithmetical steps assumed to comprise the binary search algorithm. For each guess which was made by a user, we estimated the processing difficulty on each of these measures based on the upper and lower bounds available to the user when the guess was made. We measured how successful the Expected Information Gain (EIG) of the user's guess relative to the EIG of the optimal guess. We call this measure Relative Expected Information Gain (REIG). We constructed linear mixed effects models to predict REIG using our measures of arithmetical difficulty.
+
+We calculate the following cost measures for each guess
+
+1) Interval size (`U - L`)
+2) Midpoint (`(U - L) / 2`)
 3) No. borrows & carries
-4) No. Operations
+4) No. operations
 
 ```{r}
 
@@ -56,30 +121,31 @@ guesses <- guesses %>%
     meanBound = (upperBound + lowerBound) / 2,
   
     # Subtraction measures
-    interval = upperBound - lowerBound,
-    lb.mod10.0 = lowerBound %% 10 == 0,
-    lb.lt.10 = lowerBound < 10,
-    sub.borrow = (upperBound %% 10) < (lowerBound %% 10),
+    lb.mod10.0 = lowerBound %% 10 == 0, # No subtraction necessary in ones-place;
+                                        # No addition necessary in ones-place
+    lb.lt.10 = lowerBound < 10, # No subtraction necessary in tens-place;
+                                # No addition necessary in tens-place
+    sub.borrow = (upperBound %% 10) < (lowerBound %% 10), # Borrow in ones-place
     sub.tens.eq = (upperBound %/% 10) == (lowerBound %/% 10),
   
     # Division measures
-    interval.odd = (interval %% 2 == 1),
-    interval.tens.odd = ((interval %/% 10) %% 2) == 1,
-    interval.lt.10 = interval < 10,
+    interval.odd = (interval %% 2 == 1), # Carry in ones-place
+    interval.tens.odd = ((interval %/% 10) %% 2) == 1, # Carry in tens-place
+    interval.lt.10 = interval < 10, # No division necessary in tens-place
   
     # Addition measures
     J = interval / 2,
-    add.carry = ((J %% 10) + (lowerBound %% 10)) >= 10,
-    j.lt.10 = J < 10,
-    j.mod10.0 = (J %% 10) == 0
+    add.carry = ((J %% 10) + (lowerBound %% 10)) >= 10, # Carry in ones-place
+    j.lt.10 = J < 10, # No addition necessary in tens-place
+    j.mod10.0 = (J %% 10) == 0 # No addition necessary in ones-place
   ) %>%
   rowwise() %>%
   mutate(
-    # Wrapped measures
+    # Aggregated measures
     carries = sum(sub.borrow, add.carry, interval.odd, interval.tens.odd),
     ops = (1 - lb.lt.10) + (1 - lb.mod10.0)  + # Subtraction
-      (1 - interval.lt.10) + 1 + # Division
-      (1 - (j.lt.10 | lb.lt.10)) + (1 - (j.mod10.0 | lb.mod10.0))
+          (1 - interval.lt.10) + 1 + # Division
+          (1 - (j.lt.10 | lb.lt.10)) + (1 - (j.mod10.0 | lb.mod10.0)) # Addition
   )
   
 ```
