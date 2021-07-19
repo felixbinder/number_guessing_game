@@ -1,5 +1,5 @@
 #Generate a dataframe of random legal guesses
-source("analysis/get_EIG.R")
+source("utils/get_EIG.R")
 i = 1
 gameIDs = c()
 guesses = c()

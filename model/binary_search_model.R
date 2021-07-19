@@ -1,5 +1,5 @@
 #Generate a dataframe of binary search for all 100 possible guesses
-source("analysis/get_EIG.R")
+source("utils/get_EIG.R")
 gameID = 0
 gameIDs = c()
 guesses = c()

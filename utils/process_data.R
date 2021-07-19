@@ -44,7 +44,7 @@ guesses <- games %>%
 
 ## ---------------------------------------------------------------------------------------------------
 
-source("analysis/get_EIG.R")
+source("utils/get_EIG.R")
 
 guesses <- guesses %>%
   group_by(gameId) %>%

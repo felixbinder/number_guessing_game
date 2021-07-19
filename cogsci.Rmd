@@ -1,6 +1,6 @@
 ---
-title: "cogsci"
-author: "Cameron Jones"
+title: "Cognitive cost and information gain trade off in a large-scale number guessing game"
+author: "Felix Binder, Cameron Jones, Robert Kaufman, Naomi Lin, Crystal Poole, Ed Vul"
 date: "02/02/2021"
 output:
   html_document:
@@ -18,18 +18,15 @@ Load libraries and create useful variables
 
 # Load libraries
 suppressMessages(library(tidyverse))
-library(tidyverse)
 library(RColorBrewer)
 library(knitr)
-library(lmerTest)
-library(BSDA)
+suppressMessages(library(lmerTest))
+suppressMessages(library(BSDA))
 
-# Create color palette
-paired <- brewer.pal(6, "Paired")
-color1 <- paired[1]
-color2 <- paired[2]
-color3 <- paired[3]
+# Load utils
+source("utils/get_EIG.R")
 
+# Colors
 color.binary = "green"
 color.random = "red"
 color.human = "blue"
@@ -43,7 +40,7 @@ Here we load the datasets (or preprocess them using `process_data.R` if they hav
 ```{r}
 
 # Load data (and preprocess if this hasn't already been done).
-source("read_data.R")
+source("utils/read_data.R")
 
 ```
 
@@ -67,7 +64,7 @@ Dataframe `games` from `games.csv` file on kaggle.
   
 ## Guesses
 
-We pivot the data longer so that each guess is on a new row. We remove any rows which contain unused guesses (i.e. NA). We also create a variety of variables to measure the *effectiveness* of each guess in different ways (i.e. how much does the guess reduce uncertainty about the target number)? We filter out guesses which are out of bounds.
+We pivot the data longer so that each guess is on a new row. We remove any rows which contain unused guesses (i.e. NA). We also create a variety of variables to measure the *effectiveness* of each guess in different ways (i.e. how much does the guess reduce uncertainty about the target number)? We filter out guesses which are out of bounds. The code which generates these variables can be found in `utils/process_data.R`.
 
 We then have a second dataframe `guesses`, with:
   
@@ -76,16 +73,13 @@ We then have a second dataframe `guesses`, with:
 
 We create the following variables:
 
+* `attemptNum` (int): Index of guess in game
+* `guess` (int): The guess which the user submits.
 * `response` (factor w/ 3 levels): Whether targetNum is "lower" or "higher" than the guess, or "correct".
 * `lowerBound` and `upperBound` (int): Minimum and maximum possible values for `targetNum` given previous guesses.
-* `numAvailable` (int): The number of possible options within bounds.
-* `prob` (num): The probability of randomly choosing `targetNum` from guesses within bounds [0,1].
-* `entropy` (num): The level of uncertainty of `targetNum` given bounds (`-1 * numAvailable * prob * log(prob)`).
-* `infoGain` (num): The reduction in `entropy` from `guess`.
-* `optimalGuess` (int): The optimal guess based on binary search.
-* `outOfBounds` (int): Whether the guess is within (0) or outwith (1) bounds.
-* `numExcluded` (int): The number of potential choices ruled out by the `guess`.
-* `propExcluded` (num): The proportion of potential choices ruled out by `guess`.
+* `EIG` (num): The expected information gain of the guess.
+* `EIG.optimal` (num): The expected information gain of the optimal guess.
+* `EIG.relative` (num): `EIG` relative to `EIG.optimal` (aka rEIG; `EIG / EIG.optimal`)
 
 ## Simulated Data
 
@@ -264,6 +258,12 @@ We test whether random and optimal guessing are significantly different from hum
 
 ```{r}
 
+guesses.adj <- guesses.adj %>%
+  mutate(
+    random.guess = round(runif(1, lowerBound, upperBound)),
+    EIG.random = get_EIG(lowerBound, upperBound, random.guess)
+  )
+
 z.test(guesses.adj$EIG, guesses.adj$EIG.random, sigma.x = sd(guesses.adj$EIG), sigma.y=sd(guesses.adj$EIG.random))
 
 # z.test(guesses.adj$EIG, guesses.random$EIG, sigma.x = sd(guesses.adj$EIG), sigma.y=sd(guesses.random$EIG))
@@ -273,7 +273,7 @@ z.test(guesses.adj$EIG, guesses.adj$EIG.random, sigma.x = sd(guesses.adj$EIG), s
 ### Optimal Guessing
 ```{r}
 
-z.test(guesses.adj$EIG, guesses.adj$EIG.optimal, sigma.x = sd(guesses.adj$EIG), sigma.y=sd(guesses.adj$EIG.optimal))
+z.test(guesses.adj$EIG.optimal, guesses.adj$EIG, sigma.x = sd(guesses.adj$EIG.optimal), sigma.y=sd(guesses.adj$EIG))
 
 # z.test(guesses.adj$EIG, guesses.random$EIG, sigma.x = sd(guesses.adj$EIG), sigma.y=sd(guesses.random$EIG))
 
@@ -291,7 +291,8 @@ users <- guesses.adj %>%
   group_by(user) %>%
   summarise(
     EIG = mean(EIG),
-    EIG.relative = mean(EIG.relative)
+    EIG.relative = mean(EIG.relative),
+    .groups="drop"
   )
 
 # Create users for simulated optimal data
@@ -299,7 +300,8 @@ games.binary <- guesses.binary %>%
   group_by(gameId) %>%
   summarise(
     EIG = mean(EIG),
-    EIG.relative = mean(EIG.relative)
+    EIG.relative = mean(EIG.relative),
+    .groups="drop"
   )
 
 # Sample from real user distribition
@@ -308,7 +310,8 @@ users.binary <- games.binary %>%
   group_by(user) %>%
   summarise(
     EIG = mean(EIG),
-    EIG.relative = mean(EIG.relative)
+    EIG.relative = mean(EIG.relative),
+    .groups="drop"
   )
 
 # Create users for random simulated data
@@ -316,7 +319,8 @@ games.random <- guesses.random %>%
   group_by(gameId) %>%
   summarise(
     EIG = mean(EIG),
-    EIG.relative = mean(EIG.relative)
+    EIG.relative = mean(EIG.relative),
+    .groups="drop"
   )
 
 # Sample from real user distribition
@@ -325,7 +329,8 @@ users.random <- games.random %>%
   group_by(user) %>%
   summarise(
     EIG = mean(EIG),
-    EIG.relative = mean(EIG.relative)
+    EIG.relative = mean(EIG.relative),
+    .groups="drop"
   )
 
 # Create df with real, random, and binary users
@@ -363,6 +368,7 @@ all.users %>%
   )
 
 ```
+
 # Heatmap Visualizations
 
 These are the visualizations used in Figure 3
@@ -416,8 +422,6 @@ theme(text = element_text(size = 20),aspect.ratio = 1)
 
 # Full Model
 
-Here we run LMEMs to measure the effects of each of the cost measures.
-
 We use the full adjusted model above to measure the marginal effect of each measure when controlling for the others.
 
 ```{r}
@@ -431,7 +435,8 @@ Below are the coefficients used in Table 1. We standardize the coefficients and 
 
 ```{r}
 
-sds = c(1, sd(guesses.adj$interval), sd(guesses.adj$meanBound), sd(guesses.adj$carries), sd(guesses.adj$ops))
+sds = c(1, sd(guesses.adj$interval), sd(guesses.adj$meanBound),
+           sd(guesses.adj$carries), sd(guesses.adj$ops))
 
 sds = sds / sd(guesses.adj$EIG.relative)
 
@@ -446,7 +451,7 @@ coefs
 
 # Interval size
 
-REIG tends to lower as interval size increases. With a few expected exceptions at 25, 50, 100. In general this fits with the hypothesis that it's harder to do the optimal calculation for high intervals.
+rEIG tends to lower as interval size increases. With a few expected exceptions at 25, 50, 100. In general this fits with the hypothesis that it's harder to do the optimal calculation for high intervals.
 
 Below we plot the effect of interval on REIG.
 
@@ -457,7 +462,8 @@ p.interval <- guesses.adj %>%
   # mutate(rEIG.user.mean = mean(EIG.relative),
   #        rEIGn = EIG.relative / rEIG.user.mean) %>%
   group_by(interval) %>%
-  summarise(EIG.relative = mean(EIG.relative)) %>%
+  summarise(EIG.relative = mean(EIG.relative),
+            .groups="drop") %>%
   ggplot(aes(interval, EIG.relative)) + 
   stat_summary(fun = "mean", geom = "point", color = "#444444",
                size=1.5) + 
@@ -482,14 +488,6 @@ p.interval
 
 ```
 
-```{r}
-
-# Save figure
-
-# ggsave("reig-interval.png", p.interval, bg = "transparent", width=7, height=5)
-
-```
-
 A linear model confirms the negative effect of interval size on rEIG.
 
 ```{r}
@@ -501,7 +499,7 @@ m.interval = lmer(EIG.relative ~ interval + (1 | user),
 summary(m.interval)
 
 # Get exact df
-summary(m.interval)$coef[,3]
+summary(m.interval)$coef[2,3]
 
 ```
 
@@ -515,7 +513,7 @@ m.interval.gt50 = lmer(EIG.relative ~ interval + (1 | user),
 
 summary(m.interval.gt50)
 
-coef(summary(m.interval.gt50))
+summary(m.interval.gt50)$coef[2,3]
 ```
 
 # Mean bound size
@@ -526,7 +524,8 @@ Visualization of rEIG vs mean bound size.
 
 p.meanBound <- guesses.adj %>%
   group_by(meanBound) %>%
-  summarise(EIG.relative = mean(EIG.relative)) %>%
+  summarise(EIG.relative = mean(EIG.relative),
+            .groups="drop") %>%
   ggplot(aes(meanBound, EIG.relative)) + 
   stat_summary(fun = "mean", geom = "point", color = "#444444", size=1.5) + 
   geom_smooth(method = "lm", formula = "y ~ x", se = T,
@@ -562,19 +561,12 @@ summary(m.mb)
 # get df
 summary(m.mb)$coef[2,3]
 
-
 ```
-
-```{r}
-# ggsave("reig-meanBound.png", p.meanBound, bg = "transparent", width=7, height=5)
-
-```
-
 
 
 # Carries & Borrows
 
-Plot of rEIG vs carries.
+Plot of rEIG vs carries shows a negative effect of increasing no. of carries on rEIG.
 
 ```{r}
 
@@ -602,11 +594,7 @@ p.carry
 
 ```
 
-```{r}
-# ggsave("reig-carry.png", p.carry, bg = "transparent", width=7, height=5)
-```
-
-LMEM shows negative effect.
+A LMEM confirms the negative effect.
 
 ```{r}
 
@@ -619,29 +607,39 @@ summary(m.carry)
 ```
 
 ```{r}
+# get df
 summary(m.carry)$coef[,3]
 
 ```
 
 # Operations
 
-Plot rEIG vs no. operations.
+A plot of rEIG vs no. operations shows a negative trend with high variance.
 
 ```{r}
 
 guesses.adj %>%
   ggplot(aes(ops, EIG.relative)) + 
-  stat_summary(fun = "mean", geom = "point") +
-  geom_smooth(method = "lm", formula = "y ~ x", se = T) +
-  # stat_summary(fun = "mean", geom = "bar", fill=color1) +
-  # stat_summary(fun.data = "mean_cl_boot", geom = "errorbar", width = 0.2, alpha = 0.5) +
+  stat_summary(fun = "mean", geom = "point", color = "#444444",
+               size=3) +
+  geom_smooth(method = "lm", formula = "y ~ x", se = T,
+              color="#FF0022", size=1.5) +
   theme_minimal() + 
   labs(
     y = "rEIG",
     x = "No. Single Digit Operations"
-  )
+  ) + 
+  theme(
+    panel.grid.minor = element_line(size = 0.5),
+    panel.grid.major = element_line(size = 1),
+      # Text
+    axis.title.x = element_text(size=22, margin = margin(t = 10, r = 0, b = 0, l = 0)),
+    axis.title.y = element_text(size=22, margin = margin(t = 0, r = 10, b = 0, l = 0)),
+    axis.text = element_text(size=15)
+)
 
 ```
+
 Model shows this is a significant negative effect. However, the effect does not hold in the full model (above).
 
 ```{r}
@@ -656,8 +654,8 @@ summary(m.ops)
 
 ```{r}
 
-#df
-summary(m.ops)$coef[,3]
+#get df
+summary(m.ops)$coef[2,3]
 
 ```
 
